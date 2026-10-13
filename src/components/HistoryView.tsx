@@ -12,7 +12,13 @@ import { CompletedCalendar } from './CompletedCalendar'
 import { TaskNode } from './TaskNode'
 
 /** 回顾页：历史完成记录（日历 + 选中日清单 + 统计 + 回收站） */
-export function HistoryView({ today }: { today: string }): JSX.Element {
+export function HistoryView({
+  today,
+  onOpenExport,
+}: {
+  today: string
+  onOpenExport: () => void
+}): JSX.Element {
   const tasks = useStore((s) => s.tasks)
   const snapshots = useStore((s) => s.snapshots)
   const calendarMode = useStore((s) => s.ui.calendarMode)
@@ -68,11 +74,10 @@ export function HistoryView({ today }: { today: string }): JSX.Element {
           <h2 className="panel__title">已完成回顾</h2>
           <p className="panel__sub">按日期回看每一天完成了什么</p>
         </div>
-        <button
-          type="button"
-          className="btn btn--sm"
-          onClick={() => actions.setView('board')}
-        >
+        <button type="button" className="btn btn--sm btn--primary" onClick={onOpenExport}>
+          导出述职数据
+        </button>
+        <button type="button" className="btn btn--sm" onClick={() => actions.setView('board')}>
           ← 回到今天
         </button>
       </div>

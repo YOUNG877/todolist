@@ -15,8 +15,8 @@ import { clearStorage, createInitialState, flushSave, STORAGE_KEY } from '@/stor
 import { useStore, type StoreState } from '@/store/store'
 import { CURRENT_VERSION, DEFAULT_SETTINGS, type PersistedState, type Task } from '@/store/types'
 
-function at(year: number, month: number, day: number, hour = 9): Date {
-  return new Date(year, month - 1, day, hour, 0, 0, 0)
+function at(year: number, month: number, day: number, hour = 9, minute = 0): Date {
+  return new Date(year, month - 1, day, hour, minute, 0, 0)
 }
 
 function makeTask(partial: Partial<Task> & { title: string }): Task {
@@ -345,6 +345,95 @@ describe('App 真实渲染（jsdom）', () => {
     const done = screen.getByRole('region', { name: '今日已完成' })
     expect(within(done).getByText('用户权限开发')).toBeTruthy()
     expect(within(done).getByText('子任务 2/2')).toBeTruthy()
+  })
+
+  it('导出：从顶栏菜单打开对话框，按日期列出完成记录', () => {
+    seedStorage(
+      makeState('2025-06-01', [
+        makeTask({
+          title: '回复客户邮件',
+          status: 'done',
+          tags: ['工作'],
+          priority: 'high',
+          completedAt: at(2025, 6, 1, 10, 30).toISOString(),
+          completedDate: '2025-06-01',
+        }),
+      ]),
+    )
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: '数据管理' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /导出数据/ }))
+
+    const dialog = screen.getByRole('dialog', { name: '导出数据' })
+    const preview = within(dialog).getByLabelText('导出内容预览')
+
+    expect(preview.textContent).toContain('# 待办完成记录 · 2025 年')
+    expect(preview.textContent).toContain('## 逐日完成清单')
+    expect(preview.textContent).toContain('### 2025-06-01 星期日（完成 1 件）')
+    expect(preview.textContent).toContain('回复客户邮件')
+    expect(within(dialog).getByText(/共/)).toBeTruthy()
+  })
+
+  it('导出：可切到 CSV，带 BOM 与表头，便于 Excel 统计', () => {
+    seedStorage(
+      makeState('2025-06-01', [
+        makeTask({
+          title: '写周报',
+          status: 'done',
+          completedAt: at(2025, 6, 1, 9, 0).toISOString(),
+          completedDate: '2025-06-01',
+        }),
+      ]),
+    )
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: '数据管理' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /导出数据/ }))
+
+    const dialog = screen.getByRole('dialog', { name: '导出数据' })
+    fireEvent.change(within(dialog).getByLabelText('格式'), { target: { value: 'csv' } })
+
+    const preview = within(dialog).getByLabelText('导出内容预览')
+    expect(preview.textContent).toContain('日期,星期,任务,层级,父任务')
+    expect(preview.textContent).toContain('写周报,主任务')
+    // BOM 在 <pre> 渲染时不可见，这里验证它确实存在
+    expect(preview.textContent?.startsWith('\uFEFF')).toBe(true)
+  })
+
+  it('导出：回顾页也有入口，切换范围会改变统计口径', () => {
+    seedStorage(
+      makeState('2025-06-01', [
+        makeTask({
+          title: '本年完成的',
+          status: 'done',
+          completedAt: at(2025, 3, 10, 9, 0).toISOString(),
+          completedDate: '2025-03-10',
+        }),
+        makeTask({
+          title: '上一年完成的',
+          status: 'done',
+          completedAt: at(2024, 12, 20, 9, 0).toISOString(),
+          completedDate: '2024-12-20',
+        }),
+      ]),
+    )
+    render(<App />)
+    openHistory()
+
+    fireEvent.click(screen.getByRole('button', { name: '导出述职数据' }))
+    const dialog = screen.getByRole('dialog', { name: '导出数据' })
+    const preview = within(dialog).getByLabelText('导出内容预览')
+
+    // 默认「本年」→ 不含去年那条
+    expect(preview.textContent).toContain('本年完成的')
+    expect(preview.textContent).not.toContain('上一年完成的')
+
+    // 切到自定义并把起点提前到去年，就能取到两条
+    fireEvent.change(within(dialog).getByLabelText('时间范围'), { target: { value: 'custom' } })
+    fireEvent.change(within(dialog).getByLabelText('起'), { target: { value: '2024-01-01' } })
+
+    expect(within(dialog).getByLabelText('导出内容预览').textContent).toContain('上一年完成的')
   })
 
   it('日历可以翻月，并能在翻走后回到今天', () => {

@@ -1,7 +1,7 @@
 {
   "name": "todolist",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "以「今天」为中心的待办事项应用：待办池 → 今日待办 → 完成归档 / 未完成自动顺延",
   "author": "YOUNG877",

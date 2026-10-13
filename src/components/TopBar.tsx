@@ -6,9 +6,15 @@ export interface TopBarProps {
   today: string
   debugOpen: boolean
   onToggleDebug: () => void
+  onOpenExport: () => void
 }
 
-export function TopBar({ today, debugOpen, onToggleDebug }: TopBarProps): JSX.Element {
+export function TopBar({
+  today,
+  debugOpen,
+  onToggleDebug,
+  onOpenExport,
+}: TopBarProps): JSX.Element {
   const settings = useStore((s) => s.settings)
   const taskCount = useStore((s) => s.tasks.length)
   const view = useStore((s) => s.ui.view)
@@ -113,6 +119,18 @@ export function TopBar({ today, debugOpen, onToggleDebug }: TopBarProps): JSX.El
             <>
               <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
               <div className="menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="menu__item"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onOpenExport()
+                  }}
+                >
+                  导出数据（按日期，适合述职）
+                </button>
+                <div className="menu__sep" />
                 <button type="button" role="menuitem" className="menu__item" onClick={exportJSON}>
                   导出 JSON 备份
                 </button>

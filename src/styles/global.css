@@ -1358,6 +1358,171 @@ code {
   margin-top: var(--sp-2);
 }
 
+/* ---------- 弹窗 ---------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-5);
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  max-height: min(88vh, 900px);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.modal--wide {
+  max-width: 860px;
+}
+
+.modal__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.modal__title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+
+.modal__sub {
+  margin-top: 2px;
+  color: var(--c-text-3);
+  font-size: var(--fs-xs);
+}
+
+.modal__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  overflow: auto;
+}
+
+.modal__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--c-border);
+  background: var(--c-surface-2);
+}
+
+.modal__hint {
+  color: var(--c-text-3);
+  font-size: var(--fs-xs);
+}
+
+/* ---------- 导出对话框 ---------- */
+
+.export-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--sp-3);
+}
+
+.field--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.field--stack .field__label {
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+}
+
+.checkbox-field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--c-text-2);
+  cursor: pointer;
+}
+
+.checkbox-field input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--c-primary);
+  cursor: pointer;
+}
+
+.export-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.export-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
+  background: var(--c-primary-soft);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+}
+
+.export-preview {
+  flex: 1;
+  min-height: 200px;
+  max-height: 42vh;
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  overflow: auto;
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  color: var(--c-text-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 767px) {
+  .modal-backdrop {
+    padding: var(--sp-3);
+    align-items: flex-end;
+  }
+
+  .modal {
+    max-height: 92vh;
+  }
+
+  .modal__head,
+  .modal__body,
+  .modal__foot {
+    padding-left: var(--sp-4);
+    padding-right: var(--sp-4);
+  }
+
+  .modal__hint {
+    display: none;
+  }
+}
+
 /* ---------- 响应式 ---------- */
 
 @media (max-width: 1279px) {

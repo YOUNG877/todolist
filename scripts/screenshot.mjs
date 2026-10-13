@@ -153,6 +153,22 @@ try {
     })
   }
 
+  // --download-dir：允许页面触发下载并落到指定目录，用来验证导出功能真的写出了文件
+  if (typeof args['download-dir'] === 'string') {
+    const dir = resolve(args['download-dir'])
+    mkdirSync(dir, { recursive: true })
+    try {
+      await client.send('Browser.setDownloadBehavior', {
+        behavior: 'allow',
+        downloadPath: dir,
+        eventsEnabled: true,
+      })
+    } catch {
+      await client.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: dir })
+    }
+    console.log(`下载目录已设为 ${dir}`)
+  }
+
   if (!attachPort) {
     await client.send('Page.navigate', { url })
     await sleep(waitMs)

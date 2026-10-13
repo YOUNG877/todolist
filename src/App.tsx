@@ -4,6 +4,7 @@ import { logicalDateOf } from '@/core/date'
 import { actions, useStore } from '@/store/store'
 import { BacklogPanel } from './components/BacklogPanel'
 import { DebugPanel } from './components/DebugPanel'
+import { ExportDialog } from './components/ExportDialog'
 import { HistoryView } from './components/HistoryView'
 import { RolloverNotice } from './components/RolloverNotice'
 import { TodayDonePanel } from './components/TodayDonePanel'
@@ -18,6 +19,7 @@ export default function App(): JSX.Element {
   // 订阅结算结果，保证跨天 / 时间旅行后整个界面跟着换日期
   const settledToday = useStore((s) => s.lastSettle?.today ?? null)
   const [debugOpen, setDebugOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   const today = settledToday ?? logicalDateOf(clock.now(), settings.dayStartHour)
 
@@ -82,7 +84,12 @@ export default function App(): JSX.Element {
   return (
     <div className="app">
       <h1 className="visually-hidden">待办事项管理</h1>
-      <TopBar today={today} debugOpen={debugOpen} onToggleDebug={() => setDebugOpen((v) => !v)} />
+      <TopBar
+        today={today}
+        debugOpen={debugOpen}
+        onToggleDebug={() => setDebugOpen((v) => !v)}
+        onOpenExport={() => setExportOpen(true)}
+      />
 
       {storageWarning && (
         <div className="banner banner--warn" role="alert">
@@ -96,7 +103,7 @@ export default function App(): JSX.Element {
 
       {view === 'history' ? (
         <main className="layout layout--single">
-          <HistoryView today={today} />
+          <HistoryView today={today} onOpenExport={() => setExportOpen(true)} />
         </main>
       ) : (
         <main className="layout">
@@ -105,6 +112,8 @@ export default function App(): JSX.Element {
           <TodayDonePanel today={today} />
         </main>
       )}
+
+      {exportOpen && <ExportDialog today={today} onClose={() => setExportOpen(false)} />}
     </div>
   )
 }
