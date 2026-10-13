@@ -1,0 +1,21 @@
+# 依赖与构建产物
+node_modules/
+dist/
+
+# pnpm 的内容寻址存储（本机误建在项目里，约 90MB，绝不能提交）
+.pnpm-store/
+
+# 编辑器 / IDE
+.idea/
+.vscode/
+*.swp
+
+# 截图与本地临时产物
+.shots/
+*.local
+.DS_Store
+
+# 日志
+*.log
+npm-debug.log*
+pnpm-debug.log*

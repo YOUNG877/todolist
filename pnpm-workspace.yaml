@@ -1,0 +1,6 @@
+# pnpm 11 的构建脚本白名单。esbuild 需要执行安装脚本，否则 vite / vitest 无法运行。
+allowBuilds:
+  esbuild: true
+
+# 运行脚本前不自动跑 install（避免 pnpm test 因依赖校验中断）
+verifyDepsBeforeRun: false

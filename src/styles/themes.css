@@ -1,0 +1,81 @@
+/* ==========================================================================
+   themes.css —— 亮/暗主题色板。切换方式：<html data-theme="light|dark">
+   ========================================================================== */
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --c-bg: #f5f6f8;
+  --c-surface: #ffffff;
+  --c-surface-2: #fafbfc;
+  --c-surface-hover: #f2f4f7;
+  --c-border: #e4e7ec;
+  --c-border-strong: #d0d5dd;
+
+  --c-text: #1d2430;
+  --c-text-2: #5b6472;
+  --c-text-3: #98a2b3;
+
+  --c-primary: #4f8dfd;
+  --c-primary-hover: #3d7bf0;
+  --c-primary-soft: #eaf1ff;
+  --c-on-primary: #ffffff;
+
+  --c-success: #22c55e;
+  --c-success-soft: #e8f9ef;
+  --c-danger: #ef4444;
+  --c-danger-soft: #fdecec;
+  --c-warn: #f59e0b;
+  --c-warn-soft: #fef4e3;
+
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08);
+  --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.1);
+  --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.16);
+
+  /* 日历热力（FR-16）：刻意保持浅淡，保证 var(--c-text) 始终有足够对比度 */
+  --heat-0: #f2f4f7;
+  --heat-1: #e2f4ea;
+  --heat-2: #c6ead7;
+  --heat-3: #a3ddbd;
+  --heat-4: #7fcea2;
+  --heat-ring: rgba(79, 141, 253, 0.35);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --c-bg: #14161a;
+  --c-surface: #1c1f24;
+  --c-surface-2: #22262c;
+  --c-surface-hover: #282d34;
+  --c-border: #2e333b;
+  --c-border-strong: #3c434d;
+
+  --c-text: #e8eaed;
+  --c-text-2: #a8b0bb;
+  --c-text-3: #6f7883;
+
+  --c-primary: #6ea0ff;
+  --c-primary-hover: #85b0ff;
+  --c-primary-soft: #1e2a41;
+  --c-on-primary: #0f1216;
+
+  --c-success: #3ddc84;
+  --c-success-soft: #16291f;
+  --c-danger: #ff6b6b;
+  --c-danger-soft: #2e1a1a;
+  --c-warn: #ffb454;
+  --c-warn-soft: #2e2415;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+
+  --heat-0: #23272e;
+  --heat-1: #1d3a2b;
+  --heat-2: #24553b;
+  --heat-3: #2b7049;
+  --heat-4: #338a58;
+  --heat-ring: rgba(110, 160, 255, 0.45);
+}
