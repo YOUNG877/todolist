@@ -1,4 +1,4 @@
-# 今日待办 · TodoList
+﻿# 今日待办 · TodoList
 
 以「今天」为中心的待办事项网站：长期任务放在**待办池**，每天挑几件拖进**今日待办**，
 做完打勾归档到当天，没做完的第二天**自动顺延**并显示「顺延 N 天」角标。
@@ -55,32 +55,76 @@ pnpm app:pack      # 生成 Windows 安装包到 release/
 ### 桌面应用与安装包
 
 ```bash
-pnpm app:pack      # → release/TodoList-0.1.0-setup.exe（NSIS 安装包，约 106MB）
+pnpm app:pack      # → release/TodoList-0.3.0-setup.exe（安装包）+ -portable.zip（绿色版）
 pnpm app           # 不打包，直接跑桌面应用，便于调试主进程
+pnpm app:sign      # 生成自签名代码签名证书（首次一次性）
+pnpm app:pack:signed   # 用该证书签名打包（需证书密码）
 ```
+
+产物说明：
+
+| 文件 | 用途 |
+| --- | --- |
+| `release/TodoList-*-setup.exe` | NSIS 安装包，**未签名** |
+| `release/TodoList-*-portable.zip` | 绿色版，解压即用，不写注册表、不建快捷方式 |
+| `release/signed/*` | 同上两份，但**已代码签名**（需先让本机信任证书） |
 
 安装包特性：可选安装目录、创建桌面与开始菜单快捷方式（名称「今日待办」）、
 **卸载时不删除数据**（`deleteAppDataOnUninstall: false`，待办记录会保留）。
 
-几个实现要点：
+---
 
-- **用自定义 `app://` 协议加载页面，而不是 `file://`**。应用全部数据都存在 localStorage 里，
-  而 `file://` 属于 opaque origin，Chromium 对它的 localStorage 支持不稳定，换版本就可能丢数据。
-  `app://` 是 standard + secure 协议，来源稳定。已实测：打包后应用内写入数据 → 刷新 → **完整退出再重启**，
-  数据完好（`origin` 为 `app://local`）。
-- **固定用户数据目录名**：主进程在 ready 之前调用 `app.setName('TodoList')`。
-  默认规则会取 `package.json` 的 `name`（开发运行 → `todolist`）或 `productName`（打包运行 → `今日待办`），
-  两者是**真正不同的目录**，调完主进程再打开应用就会以为「待办全没了」。固定名字可以避免这种分裂。
-  待办数据实际存放于 **`%APPDATA%\TodoList\Local Storage`**（Windows 该卷大小写不敏感，
-  `todolist` 与 `TodoList` 指向同一个目录，所以改名不会丢已有数据）。
-  另外已实测：数据在应用**优雅退出时落盘**，硬杀进程可能丢失最近的改动。
-- 主进程关掉了 `nodeIntegration`，开启 `contextIsolation` 与 `sandbox`——页面是纯静态内容，
-  不需要任何 Node 能力。
-- 单实例锁：重复启动会聚焦已有窗口，避免两个进程同时读写同一份 localStorage。
-- 图标由 `scripts/make-icon.py` 用 Pillow 生成（`pnpm icon`），改配色只需改脚本里的常量。
-- 页面里的外链交给系统浏览器打开；打包后不暴露 DevTools 快捷键。
+## ⚠️ 双击安装包被 SmartScreen 拦下怎么办
 
-#### 本机打包遇到的两个坑
+会看到蓝色弹窗：
+
+> **Windows 已保护你的电脑**
+> Microsoft Defender SmartScreen 阻止了无法识别的应用启动
+
+**这不是安装包坏了**，而是它没有代码签名证书。Windows 对「未签名 + 没有下载信誉」的
+可执行文件一律这样拦，任何个人开发者自己打包的 exe 首次运行都会遇到。
+
+### 立刻可用：点一次「仍要运行」
+
+1. 点弹窗里的 **「更多信息」**（截图里只有「不运行」，是因为「仍要运行」要点开更多信息才会出现）
+2. 再点 **「仍要运行」**
+
+每个新构建的安装包需要点一次（SmartScreen 按文件哈希记录信誉）。
+
+### 立刻可用的替代：绿色版
+
+不想碰安装包就用 `release/TodoList-*-portable.zip`：右键解压到任意目录，
+双击里面的 `今日待办.exe` 即可。已实测解压后可直接启动，不触发安装包那层拦截。
+
+### 真正的修复：代码签名
+
+```bash
+# 1) 生成自签名证书（仅本机自用足够），会打印 pfx 密码
+pnpm app:sign
+
+# 2) 用该证书签名打包
+pnpm app:pack:signed -- -Password "<上一步打印的密码>"
+#    若目录改名报 EPERM（工作区里有文件监视/杀软），加 -OutDir 指到工作区外：
+#    ... -OutDir D:\build\todolist
+
+# 3) 让本机信任这张证书（会弹安全警告，点「是」；管理员运行则无弹窗）
+certutil -user -addstore Root .certs\todolist-codesign.cer
+certutil -user -addstore TrustedPublisher .certs\todolist-codesign.cer
+```
+
+做完第 3 步，`release/signed/` 里的安装包就不会再被拦。
+验证签名状态：`Get-AuthenticodeSignature release\signed\TodoList-0.3.0-setup.exe`
+—— 导入证书前是 `UnknownError`（签名存在但根证书不受信任），导入后应是 `Valid`。
+
+注意事项：
+
+- **`.certs/` 里是私钥，已加入 `.gitignore`，绝不要提交或外发。**
+  拿到 pfx 的人可以用它签任何程序，而你的机器会信任。
+- 想撤销信任：`certutil -user -delstore Root <证书指纹>`。
+- **自签名证书只在导入了它的机器上受信任。要分发给别人，必须购买
+  OV/EV 代码签名证书**（EV 证书才有即时的 SmartScreen 信誉）。
+
+### 本机打包遇到的其他坑
 
 > **1. Electron 运行时缺失。** pnpm 执行 electron 的 postinstall 时可能静默失败
 > （`node_modules/electron/dist` 不存在，但安装过程不报错）。修复：
@@ -102,6 +146,28 @@ pnpm app           # 不打包，直接跑桌面应用，便于调试主进程
 > **3. 打包后的应用秒退、报 `bad option: --remote-debugging-port`。**
 > 这是环境变量 `ELECTRON_RUN_AS_NODE=1` 造成的——它会让 Electron 退化成纯 Node 运行。
 > 启动前清掉即可：`$env:ELECTRON_RUN_AS_NODE = $null`。不是应用本身的问题。
+>
+> **4. PowerShell 脚本里的中文变成乱码、报「字符串缺少终止符」。**
+> Windows PowerShell 5.1 读取无 BOM 的 UTF-8 脚本会按 ANSI 解码，
+> 中文的字节可能把后面的引号「吃掉」。`*.ps1` 请保存为 **UTF-8 with BOM**。
+
+几个实现要点：
+
+- **用自定义 `app://` 协议加载页面，而不是 `file://`**。应用全部数据都存在 localStorage 里，
+  而 `file://` 属于 opaque origin，Chromium 对它的 localStorage 支持不稳定，换版本就可能丢数据。
+  `app://` 是 standard + secure 协议，来源稳定。已实测：打包后应用内写入数据 → 刷新 → **完整退出再重启**，
+  数据完好（`origin` 为 `app://local`）。
+- **固定用户数据目录名**：主进程在 ready 之前调用 `app.setName('TodoList')`。
+  默认规则会取 `package.json` 的 `name`（开发运行 → `todolist`）或 `productName`（打包运行 → `今日待办`），
+  两者是**真正不同的目录**，调完主进程再打开应用就会以为「待办全没了」。固定名字可以避免这种分裂。
+  待办数据实际存放于 **`%APPDATA%\TodoList\Local Storage`**（Windows 该卷大小写不敏感，
+  `todolist` 与 `TodoList` 指向同一个目录，所以改名不会丢已有数据）。
+  另外已实测：数据在应用**优雅退出时落盘**，硬杀进程可能丢失最近的改动。
+- 主进程关掉了 `nodeIntegration`，开启 `contextIsolation` 与 `sandbox`——页面是纯静态内容，
+  不需要任何 Node 能力。
+- 单实例锁：重复启动会聚焦已有窗口，避免两个进程同时读写同一份 localStorage。
+- 图标由 `scripts/make-icon.py` 用 Pillow 生成（`pnpm icon`），改配色只需改脚本里的常量。
+- 页面里的外链交给系统浏览器打开；打包后不暴露 DevTools 快捷键。
 
 #### 验证打包后的应用
 
@@ -467,7 +533,7 @@ logicalDateOf(new Date(2025, 5, 11, 9, 0), 4)  // → '2025-06-11'
 - **不提交**：`node_modules`、`dist`、`release`、`.pnpm-store`、`.shots`、IDE 配置（见 `.gitignore`）。
 - **每次改动都要跑**：`pnpm typecheck && pnpm test`；动过构建配置或 Electron 主进程再跑 `pnpm build`。
 
-## 已知待办（M8）
+## 已知待办（M10）
 
 - 拖拽排序（当前用 ↑ / ↓ 按钮）、`Alt + ↑/↓` 快捷键
 - 任务编辑弹窗（备注、截止日期、标签、预计耗时的可视化编辑；数据层字段已就绪）

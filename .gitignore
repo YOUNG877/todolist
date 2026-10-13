@@ -17,6 +17,11 @@ release/
 *.local
 .DS_Store
 
+# 自签名代码签名证书与私钥，绝不能提交
+.certs/
+*.pfx
+*.cer
+
 # 日志
 *.log
 npm-debug.log*

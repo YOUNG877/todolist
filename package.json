@@ -16,7 +16,9 @@
     "typecheck": "tsc --noEmit",
     "icon": "python scripts/make-icon.py",
     "app": "pnpm build && electron .",
-    "app:pack": "pnpm build && electron-builder --win --x64"
+    "app:pack": "pnpm build && electron-builder --win --x64",
+    "app:sign": "powershell -ExecutionPolicy Bypass -File scripts/sign-app.ps1",
+    "app:pack:signed": "powershell -ExecutionPolicy Bypass -File scripts/pack-signed.ps1"
   },
   "dependencies": {
     "date-fns": "^4.1.0",
@@ -60,10 +62,16 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.ico",
-      "artifactName": "TodoList-${version}-setup.${ext}"
+      "artifactName": "TodoList-${version}-portable.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -72,7 +80,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "今日待办",
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "TodoList-${version}-setup.${ext}"
     }
   }
 }
