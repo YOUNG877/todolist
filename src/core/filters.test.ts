@@ -4,6 +4,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { filterByTags, matchesFilter } from './filters'
+import { sortByMode } from './selectors'
 import type { Task } from '@/store/types'
 
 let seq = 0
@@ -78,5 +79,37 @@ describe('filterByTags', () => {
     expect(matchesFilter(task, [])).toBe(true)
     expect(matchesFilter(task, ['工作'])).toBe(true)
     expect(matchesFilter(task, ['学习'])).toBe(false)
+  })
+})
+
+describe('sortByMode 按截止日期', () => {
+  const due = (date: string | null): Task => makeTask({ title: `截止 ${date ?? '无'}`, dueDate: date })
+
+  it('有截止日期的排前面并按日期升序，没有的排最后', () => {
+    const tasks = [
+      due(null),
+      due('2026-03-10'),
+      due('2026-01-05'),
+      due(null),
+      due('2026-02-01'),
+    ]
+    const sorted = sortByMode(tasks, 'due').map((t) => t.dueDate)
+
+    expect(sorted).toEqual(['2026-01-05', '2026-02-01', '2026-03-10', null, null])
+  })
+
+  it('同一天截止时按 order 稳定排序', () => {
+    const tasks = [
+      makeTask({ title: 'B', dueDate: '2026-05-01', order: 2 }),
+      makeTask({ title: 'A', dueDate: '2026-05-01', order: 1 }),
+    ]
+    expect(sortByMode(tasks, 'due').map((t) => t.title)).toEqual(['A', 'B'])
+  })
+
+  it('不修改传入数组', () => {
+    const tasks = [due('2026-03-10'), due('2026-01-05')]
+    const before = tasks.map((t) => t.dueDate)
+    sortByMode(tasks, 'due')
+    expect(tasks.map((t) => t.dueDate)).toEqual(before)
   })
 })

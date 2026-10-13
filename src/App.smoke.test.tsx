@@ -572,6 +572,51 @@ describe('App 真实渲染（jsdom）', () => {
     }
   })
 
+  it('今日待办：排序下拉里有「按截止日期」，选中后按截止日期排列', () => {
+    seedStorage(
+      makeState('2025-06-01', [
+        makeTask({ title: '晚的', dueDate: '2025-06-20' }),
+        makeTask({ title: '早的', dueDate: '2025-06-02' }),
+        makeTask({ title: '没截止的' }),
+      ]),
+    )
+    render(<App />)
+
+    const sortSelect = screen.getByLabelText('排序方式')
+    expect(within(sortSelect).getByRole('option', { name: '按截止日期' })).toBeTruthy()
+
+    fireEvent.change(sortSelect, { target: { value: 'due' } })
+
+    expect(titlesIn('今日待办')).toEqual(['早的', '晚的', '没截止的'])
+  })
+
+  it('悬浮小窗：底部的输入框可以新增今天的任务', () => {
+    window.history.replaceState({}, '', '/?widget=1')
+    try {
+      seedStorage(makeState('2025-06-01', [makeTask({ title: '已有的事' })]))
+      render(<App />)
+
+      const input = screen.getByLabelText('添加今日任务（悬浮窗）')
+      // 输入框在小窗底部
+      expect(input.closest('.widget__foot')).toBeTruthy()
+
+      fireEvent.change(input, { target: { value: '刚想起来的事' } })
+      fireEvent.submit(input.closest('form') as HTMLFormElement)
+
+      const tasks = useStore.getState().tasks
+      const added = tasks.find((t) => t.title === '刚想起来的事')
+      expect(added).toBeTruthy()
+      expect(added?.status).toBe('today')
+      expect(added?.scheduledDate).toBe('2025-06-01')
+      // 输入框已清空，可以继续录下一条
+      expect((input as HTMLInputElement).value).toBe('')
+      // 新任务出现在小窗列表里
+      expect(screen.getByRole('checkbox', { name: '完成任务：刚想起来的事' })).toBeTruthy()
+    } finally {
+      window.history.replaceState({}, '', '/')
+    }
+  })
+
   it('日历可以翻月，并能在翻走后回到今天', () => {
     seedStorage(makeState('2025-06-01'))
     render(<App />)

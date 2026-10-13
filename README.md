@@ -21,10 +21,11 @@
 | M7 | **桌面应用与 Windows 安装包**：Electron 主进程、`app://` 协议、图标、NSIS 安装包 | ✅ 完成 |
 | M8 | **导出述职数据**：按日期逐日导出 + 月度/标签统计，Markdown / CSV 两种格式 | ✅ 完成 |
 | M9 | **托盘与桌面悬浮小窗**、任务编辑弹窗（优先级/标签/备注）、标签管理与筛选、待办池全选 | ✅ 完成 |
-| M10 | 拖拽排序、行内语法（`!高 #标签 @日期`）、Toast 撤销、自动更新、PWA | ⬜ 未开始 |
+| M10 | 恢复「按截止日期」排序（编辑弹窗能设截止日期了）、悬浮小窗底部快速加任务 | ✅ 完成 |
+| M11 | 拖拽排序、行内语法（`!高 #标签 @日期`）、Toast 撤销、自动更新、PWA | ⬜ 未开始 |
 
-**已验证**：`pnpm typecheck` 无错误 · `pnpm test` **75/75 通过** · `pnpm build` 成功 ·
-1560px / 390px 视口下均无横向溢出 · 安装包 `release/TodoList-0.3.0-setup.exe`。
+**已验证**：`pnpm typecheck` 无错误 · `pnpm test` **80/80 通过** · `pnpm build` 成功 ·
+1560px / 390px 视口下均无横向溢出 · 安装包 `release/TodoList-0.3.1-setup.exe`。
 
 测试构成：
 
@@ -55,7 +56,7 @@ pnpm app:pack      # 生成 Windows 安装包到 release/
 ### 桌面应用与安装包
 
 ```bash
-pnpm app:pack      # → release/TodoList-0.3.0-setup.exe（安装包）+ -portable.zip（绿色版）
+pnpm app:pack      # → release/TodoList-0.3.1-setup.exe（安装包）+ -portable.zip（绿色版）
 pnpm app           # 不打包，直接跑桌面应用，便于调试主进程
 pnpm app:sign      # 生成自签名代码签名证书（首次一次性）
 pnpm app:pack:signed   # 用该证书签名打包（需证书密码）
@@ -119,7 +120,7 @@ certutil -user -addstore TrustedPublisher .certs\todolist-codesign.cer
 ```
 
 做完第 3 步，`release/signed/` 里的安装包就不会再被拦。
-验证签名状态：`Get-AuthenticodeSignature release\signed\TodoList-0.3.0-setup.exe`
+验证签名状态：`Get-AuthenticodeSignature release\signed\TodoList-0.3.1-setup.exe`
 —— 导入证书前是 `UnknownError`（签名存在但根证书不受信任），导入后应是 `Valid`。
 
 注意事项：
@@ -346,6 +347,8 @@ logicalDateOf(new Date(2025, 5, 11, 9, 0), 4)  // → '2025-06-11'
 │ ○ 回复客户邮件          ✕  │
 │ ○ 写周报  子任务 2/2    ✕  │
 │   ✓ 汇总本周进度 12:55      │
+├─────────────────────────────┤
+│ + 加一条今天要做的事…        │  ← 回车即添加，直接进今天
 └─────────────────────────────┘
 ```
 
@@ -354,6 +357,7 @@ logicalDateOf(new Date(2025, 5, 11, 9, 0), 4)  // → '2025-06-11'
 | ⤢ | 打开主窗口 |
 | ▴ / ▾ | 收起 / 展开（收起后只剩标题栏） |
 | ✕ | 隐藏小窗（应用仍常驻托盘） |
+| 底部输入框 | 输入后回车，直接往今天的清单里加一条；录完保持聚焦，可连续添加 |
 | 托盘左键 | 显示 / 隐藏悬浮小窗 |
 | 托盘双击 | 打开主窗口 |
 | 托盘右键菜单 | 打开主窗口 / 显示隐藏悬浮窗 / **退出** |
@@ -405,8 +409,8 @@ logicalDateOf(new Date(2025, 5, 11, 9, 0), 4)  // → '2025-06-11'
 两个圆圈并排太容易点错，所以把常用的批量选择放到最前面，完成操作退到右边。
 面板标题栏还有 **全选** 复选框，勾上即可一次选中整个池子，再点「安排选中的 N 个到今日」。
 
-> 今日待办的排序选项已去掉「按截止日期」—— 因为截止日期此前没有设置入口，
-> 这个排序实际用不上。旧数据里存的 `due` 会在读盘时归一到「手动排序」。
+> 今日待办的排序支持：手动 / 按优先级 / **按截止日期** / 按创建时间。
+> 没设截止日期的任务排在最后，同一天截止的按手动顺序稳定排列。
 
 ---
 
@@ -539,7 +543,7 @@ logicalDateOf(new Date(2025, 5, 11, 9, 0), 4)  // → '2025-06-11'
 - **不提交**：`node_modules`、`dist`、`release`、`.pnpm-store`、`.shots`、IDE 配置（见 `.gitignore`）。
 - **每次改动都要跑**：`pnpm typecheck && pnpm test`；动过构建配置或 Electron 主进程再跑 `pnpm build`。
 
-## 已知待办（M10）
+## 已知待办（M11）
 
 - 拖拽排序（当前用 ↑ / ↓ 按钮）、`Alt + ↑/↓` 快捷键
 - 任务编辑弹窗（备注、截止日期、标签、预计耗时的可视化编辑；数据层字段已就绪）

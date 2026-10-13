@@ -172,8 +172,10 @@ function normalizeUi(raw: unknown): UiState {
           date: asString(notice.date),
         }
       : null,
-    // 界面已去掉「按截止日期」排序（用户没在用截止日期），旧数据里的 due 归一到手动排序
-    sortMode: sortMode === 'priority' || sortMode === 'created' ? sortMode : 'manual',
+    sortMode:
+      sortMode === 'priority' || sortMode === 'due' || sortMode === 'created'
+        ? sortMode
+        : 'manual',
     view: r.view === 'history' ? 'history' : 'board',
     calendarMode: r.calendarMode === 'detail' ? 'detail' : 'count',
     tagFilter: Array.isArray(r.tagFilter)

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { buildTaskTree, selectTodayProgress, selectTodayTasks } from '@/core/selectors'
 import { actions, useStore } from '@/store/store'
+import { QuickAdd } from './QuickAdd'
 import { TaskNode } from './TaskNode'
 
 declare global {
@@ -115,6 +116,11 @@ export function WidgetView({ today, onEditTask }: WidgetViewProps): JSX.Element 
               </ul>
             )}
           </div>
+
+          {/* 小窗底部随时加一条今天的任务，回车即可 */}
+          <footer className="widget__foot">
+            <QuickAdd toToday compact ariaLabel="添加今日任务（悬浮窗）" placeholder="加一条今天要做的事…" />
+          </footer>
         </>
       )}
     </div>

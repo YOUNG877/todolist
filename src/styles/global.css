@@ -1764,6 +1764,25 @@ code {
   font-size: var(--fs-xs);
 }
 
+/* 小窗底部的新增输入框 */
+.widget__foot {
+  flex: none;
+  padding: var(--sp-2);
+  border-top: 1px solid var(--c-border);
+  background: var(--c-surface-2);
+}
+
+/* 紧凑录入：没有「添加」按钮，靠回车提交 */
+.quick-add--compact {
+  padding: 0 var(--sp-2) 0 var(--sp-2);
+  background: var(--c-surface);
+}
+
+.quick-add--compact .quick-add__input {
+  padding: 6px 0;
+  font-size: var(--fs-sm);
+}
+
 /* 小窗里条目更紧凑：去掉大内边距和悬停特效 */
 .task-list--compact {
   gap: 4px;

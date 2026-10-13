@@ -58,6 +58,7 @@ export function TodayPanel({
         >
           <option value="manual">手动排序</option>
           <option value="priority">按优先级</option>
+          <option value="due">按截止日期</option>
           <option value="created">按创建时间</option>
         </select>
       </div>
