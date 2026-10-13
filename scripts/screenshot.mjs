@@ -11,7 +11,7 @@
  */
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 
@@ -48,36 +48,44 @@ const dark = Boolean(args.dark)
 const mobile = Boolean(args.mobile)
 const waitMs = Number(args.wait ?? 1500)
 const port = Number(args.port ?? 9333)
+/**
+ * 连接一个已经开好的调试端口（例如打包后的 Electron 应用用
+ * `今日待办.exe --remote-debugging-port=9333` 启动），此时不再自己拉起浏览器。
+ */
+const attachPort = args.attach === undefined ? 0 : Number(args.attach === true ? port : args.attach)
+const sizeGiven = args.width !== undefined || args.height !== undefined
 
 const chromePath = CHROME_CANDIDATES.find((p) => existsSync(p))
 
-if (!chromePath) {
+if (!attachPort && !chromePath) {
   console.error('找不到 Chrome / Edge 可执行文件')
   process.exit(1)
 }
 
 const profile = `${process.env.TEMP ?? '.'}/dsh-cdp-${Date.now()}`
-const chrome = spawn(
-  chromePath,
-  [
-    '--headless=new',
-    '--disable-gpu',
-    '--hide-scrollbars',
-    '--no-first-run',
-    '--no-default-browser-check',
-    `--remote-debugging-port=${port}`,
-    `--user-data-dir=${profile}`,
-    ...(dark ? ['--force-dark-mode'] : []),
-    'about:blank',
-  ],
-  { stdio: 'ignore' },
-)
+const chrome = attachPort
+  ? null
+  : spawn(
+      chromePath,
+      [
+        '--headless=new',
+        '--disable-gpu',
+        '--hide-scrollbars',
+        '--no-first-run',
+        '--no-default-browser-check',
+        `--remote-debugging-port=${port}`,
+        `--user-data-dir=${profile}`,
+        ...(dark ? ['--force-dark-mode'] : []),
+        'about:blank',
+      ],
+      { stdio: 'ignore' },
+    )
 
 /** 等待 DevTools 端口可用，并返回页面目标的 ws 地址 */
-async function findPageTarget() {
+async function findPageTarget(debugPort = port) {
   for (let i = 0; i < 60; i += 1) {
     try {
-      const res = await fetch(`http://127.0.0.1:${port}/json/list`)
+      const res = await fetch(`http://127.0.0.1:${debugPort}/json/list`)
       const targets = await res.json()
       const page = targets.find((t) => t.type === 'page' && t.webSocketDebuggerUrl)
       if (page) return page.webSocketDebuggerUrl
@@ -130,20 +138,28 @@ try {
 
   await client.send('Page.enable')
   await client.send('Runtime.enable')
-  await client.send('Emulation.setDeviceMetricsOverride', {
-    width,
-    height,
-    deviceScaleFactor: 1,
-    mobile,
-  })
+  // 附着到桌面应用时不改视口尺寸，保留它自己的窗口大小
+  if (!attachPort && (sizeGiven || mobile)) {
+    await client.send('Emulation.setDeviceMetricsOverride', {
+      width,
+      height,
+      deviceScaleFactor: 1,
+      mobile,
+    })
+  }
   if (dark) {
     await client.send('Emulation.setEmulatedMedia', {
       features: [{ name: 'prefers-color-scheme', value: 'dark' }],
     })
   }
 
-  await client.send('Page.navigate', { url })
-  await sleep(waitMs)
+  if (!attachPort) {
+    await client.send('Page.navigate', { url })
+    await sleep(waitMs)
+  } else {
+    console.log(`已连接到调试端口 ${attachPort}，沿用当前页面：${url}`)
+    await sleep(300)
+  }
 
   if (typeof args.click === 'string') {
     // 支持多步点击：--click "选择器A;选择器B"
@@ -166,6 +182,28 @@ try {
     await client.send('Page.reload', { ignoreCache: true })
     await sleep(waitMs)
     console.log('page reloaded')
+  }
+
+  // --eval / --eval-file 放在所有交互之后，这样可以验证「操作 → 刷新」之后的最终状态
+  const evalSource =
+    typeof args['eval-file'] === 'string'
+      ? readFileSync(resolve(args['eval-file']), 'utf8')
+      : typeof args.eval === 'string'
+        ? args.eval
+        : null
+  if (evalSource !== null) {
+    const evaluated = await client.send('Runtime.evaluate', {
+      expression: evalSource,
+      returnByValue: true,
+      awaitPromise: true,
+    })
+    if (evaluated.exceptionDetails) {
+      const d = evaluated.exceptionDetails
+      console.log(`eval 抛错 → ${d.exception?.description ?? d.text}`)
+    } else {
+      console.log(`eval → ${JSON.stringify(evaluated.result.value)}`)
+    }
+    await sleep(300)
   }
 
   const probe = await client.send('Runtime.evaluate', {
@@ -192,7 +230,7 @@ try {
 
   const shot = await client.send('Page.captureScreenshot', {
     format: 'png',
-    captureBeyondViewport: true,
+    captureBeyondViewport: !attachPort,
   })
   mkdirSync(dirname(out), { recursive: true })
   writeFileSync(out, Buffer.from(shot.data, 'base64'))
@@ -200,5 +238,5 @@ try {
 
   client.close()
 } finally {
-  chrome.kill()
+  if (chrome) chrome.kill()
 }

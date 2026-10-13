@@ -3,14 +3,20 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "以「今天」为中心的待办事项网站：待办池 → 今日待办 → 完成归档 / 未完成自动顺延",
+  "description": "以「今天」为中心的待办事项应用：待办池 → 今日待办 → 完成归档 / 未完成自动顺延",
+  "author": "YOUNG877",
+  "license": "MIT",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "icon": "python scripts/make-icon.py",
+    "app": "pnpm build && electron .",
+    "app:pack": "pnpm build && electron-builder --win --x64"
   },
   "dependencies": {
     "date-fns": "^4.1.0",
@@ -26,9 +32,47 @@
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
     "jsdom": "^30.1.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
     "vitest": "^3.2.4"
+  },
+  "build": {
+    "appId": "com.young877.todolist",
+    "productName": "今日待办",
+    "copyright": "Copyright © 2026 YOUNG877",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "!**/node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "TodoList-${version}-setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "今日待办",
+      "deleteAppDataOnUninstall": false
+    }
   }
 }

@@ -1,6 +1,11 @@
-# pnpm 11 的构建脚本白名单。esbuild 需要执行安装脚本，否则 vite / vitest 无法运行。
+# pnpm 11 的构建脚本白名单。
+# esbuild：vite / vitest 依赖，不执行安装脚本就无法运行。
+# electron：postinstall 负责下载 Electron 运行时（约 90MB，走 .npmrc 里的镜像）。
 allowBuilds:
   esbuild: true
+  electron: true
+  # 只有 Squirrel.Windows 目标才需要它；我们打的是 NSIS，明确标记为不构建
+  electron-winstaller: false
 
 # 运行脚本前不自动跑 install（避免 pnpm test 因依赖校验中断）
 verifyDepsBeforeRun: false

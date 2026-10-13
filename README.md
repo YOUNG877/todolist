@@ -18,7 +18,8 @@
 | M4 | **已完成日历视图（FR-16）**、统计卡片、UI 整体重做、深浅色与响应式 | ✅ 完成 |
 | M5 | **拆成「今天 / 回顾」两页**、日历「件数 / 明细」双模式、修复时间旅行丢任务 | ✅ 完成 |
 | M6 | **二级任务（FR-13）**：缩进子任务、父子级联完成、跟随父任务顺延 | ✅ 完成 |
-| M7 | 拖拽排序、编辑弹窗、行内语法、Toast 撤销、日历「计划 vs 完成」明细、PWA | ⬜ 未开始 |
+| M7 | **桌面应用与 Windows 安装包**：Electron 主进程、`app://` 协议、图标、NSIS 安装包 | ✅ 完成 |
+| M8 | 拖拽排序、编辑弹窗、行内语法、Toast 撤销、自动更新、PWA | ⬜ 未开始 |
 
 **已验证**：`pnpm typecheck` 无错误 · `pnpm test` **43/43 通过** · `pnpm build` 成功（JS 253 KB，gzip 77 KB）·
 1560px / 390px 视口下均无横向溢出。
@@ -43,6 +44,73 @@ pnpm test          # 跑单元测试（43 条）
 pnpm typecheck     # TypeScript 严格模式检查
 pnpm build         # 产物输出到 dist/（base 为相对路径，可直接双击打开）
 pnpm preview       # 预览构建产物
+pnpm app           # 构建后直接以桌面应用方式运行（Electron）
+pnpm app:pack      # 生成 Windows 安装包到 release/
+```
+
+### 桌面应用与安装包
+
+```bash
+pnpm app:pack      # → release/TodoList-0.1.0-setup.exe（NSIS 安装包，约 106MB）
+pnpm app           # 不打包，直接跑桌面应用，便于调试主进程
+```
+
+安装包特性：可选安装目录、创建桌面与开始菜单快捷方式（名称「今日待办」）、
+**卸载时不删除数据**（`deleteAppDataOnUninstall: false`，待办记录会保留）。
+
+几个实现要点：
+
+- **用自定义 `app://` 协议加载页面，而不是 `file://`**。应用全部数据都存在 localStorage 里，
+  而 `file://` 属于 opaque origin，Chromium 对它的 localStorage 支持不稳定，换版本就可能丢数据。
+  `app://` 是 standard + secure 协议，来源稳定。已实测：打包后应用内写入数据 → 刷新 → **完整退出再重启**，
+  数据完好（`origin` 为 `app://local`）。
+- **固定用户数据目录名**：主进程在 ready 之前调用 `app.setName('TodoList')`。
+  默认规则会取 `package.json` 的 `name`（开发运行 → `todolist`）或 `productName`（打包运行 → `今日待办`），
+  两者是**真正不同的目录**，调完主进程再打开应用就会以为「待办全没了」。固定名字可以避免这种分裂。
+  待办数据实际存放于 **`%APPDATA%\TodoList\Local Storage`**（Windows 该卷大小写不敏感，
+  `todolist` 与 `TodoList` 指向同一个目录，所以改名不会丢已有数据）。
+  另外已实测：数据在应用**优雅退出时落盘**，硬杀进程可能丢失最近的改动。
+- 主进程关掉了 `nodeIntegration`，开启 `contextIsolation` 与 `sandbox`——页面是纯静态内容，
+  不需要任何 Node 能力。
+- 单实例锁：重复启动会聚焦已有窗口，避免两个进程同时读写同一份 localStorage。
+- 图标由 `scripts/make-icon.py` 用 Pillow 生成（`pnpm icon`），改配色只需改脚本里的常量。
+- 页面里的外链交给系统浏览器打开；打包后不暴露 DevTools 快捷键。
+
+#### 本机打包遇到的两个坑
+
+> **1. Electron 运行时缺失。** pnpm 执行 electron 的 postinstall 时可能静默失败
+> （`node_modules/electron/dist` 不存在，但安装过程不报错）。修复：
+> ```bash
+> node node_modules/electron/install.js
+> ```
+> 另外 Electron 二进制默认从 GitHub Releases 下载，国内网络极慢或直接失败，
+> 仓库里的 `.npmrc` 已把它指向 npmmirror 镜像。
+>
+> **2. `EPERM: rename 'release\win-unpacked.tmp' -> 'release\win-unpacked'`。**
+> electron-builder 解压 Electron 后要把临时目录改名成最终目录，而工作区内有文件监视/杀软
+> 正在扫描刚写入的上百个二进制文件，句柄未释放就会让目录改名失败——它**每次都在同一位置失败**。
+> 实测：同一个操作在工作区外完全正常。绕过办法是把输出目录指到工作区外再拷回来：
+> ```bash
+> pnpm exec electron-builder --win --x64 "-c.directories.output=C:/Users/you/TodoList-release"
+> cp C:/Users/you/TodoList-release/TodoList-*-setup.exe release/
+> ```
+>
+> **3. 打包后的应用秒退、报 `bad option: --remote-debugging-port`。**
+> 这是环境变量 `ELECTRON_RUN_AS_NODE=1` 造成的——它会让 Electron 退化成纯 Node 运行。
+> 启动前清掉即可：`$env:ELECTRON_RUN_AS_NODE = $null`。不是应用本身的问题。
+
+#### 验证打包后的应用
+
+`scripts/screenshot.mjs` 支持附着到已经开好的调试端口，可以给真实桌面应用截图、
+执行任意 JS、验证数据持久化：
+
+```bash
+# 以调试端口启动打包后的应用（先清掉 ELECTRON_RUN_AS_NODE）
+"release/win-unpacked/今日待办.exe" --remote-debugging-port=9333
+
+# 附着上去：截图 + 读 localStorage + 刷新后复查
+node scripts/screenshot.mjs --attach 9333 --out .shots/app.png --eval-file probe.js
+node scripts/screenshot.mjs --attach 9333 --out .shots/app2.png --reload --eval-file probe.js
 ```
 
 ### 演示模式
@@ -248,7 +316,17 @@ logicalDateOf(new Date(2025, 5, 11, 9, 0), 4)  // → '2025-06-11'
 
 ---
 
-## 已知待办（M7）
+## 开发约定
+
+- **提交节奏**：每完成一个可验证的功能节点就提交并推送到 `origin/main`。
+  节点的验收标准是「`pnpm typecheck` 干净 + `pnpm test` 全绿 + `pnpm build` 通过」。
+  不攒一大批改动一起提交，也不为一个错别字单开一次提交。
+- **提交信息**：`<类型>: <做了什么>`，正文写「为什么」而不是「改了什么」——代码本身已经说明了改了什么。
+  类型用 `feat` / `fix` / `refactor` / `docs` / `test` / `chore`。
+- **不提交**：`node_modules`、`dist`、`release`、`.pnpm-store`、`.shots`、IDE 配置（见 `.gitignore`）。
+- **每次改动都要跑**：`pnpm typecheck && pnpm test`；动过构建配置或 Electron 主进程再跑 `pnpm build`。
+
+## 已知待办（M8）
 
 - 拖拽排序（当前用 ↑ / ↓ 按钮）、`Alt + ↑/↓` 快捷键
 - 任务编辑弹窗（备注、截止日期、标签、预计耗时的可视化编辑；数据层字段已就绪）

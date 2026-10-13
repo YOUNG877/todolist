@@ -1,6 +1,8 @@
 # 依赖与构建产物
 node_modules/
 dist/
+# electron-builder 的输出（安装包在 release/ 里）
+release/
 
 # pnpm 的内容寻址存储（本机误建在项目里，约 90MB，绝不能提交）
 .pnpm-store/
