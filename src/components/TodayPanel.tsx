@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { filterByTags } from '@/core/filters'
 import {
   buildTaskTree,
   selectStreak,
@@ -11,16 +12,24 @@ import { actions, useStore } from '@/store/store'
 import { QuickAdd } from './QuickAdd'
 import { TaskNode } from './TaskNode'
 
-export function TodayPanel({ today }: { today: string }): JSX.Element {
+export function TodayPanel({
+  today,
+  onEdit,
+}: {
+  today: string
+  onEdit: (id: string) => void
+}): JSX.Element {
   const tasks = useStore((s) => s.tasks)
   const snapshots = useStore((s) => s.snapshots)
   const sortMode = useStore((s) => s.ui.sortMode)
+  const tagFilter = useStore((s) => s.ui.tagFilter)
 
+  const visible = useMemo(() => filterByTags(tasks, tagFilter), [tasks, tagFilter])
   const todayTasks = useMemo(
-    () => sortByMode(selectTodayTasks(tasks, today), sortMode),
-    [tasks, today, sortMode],
+    () => sortByMode(selectTodayTasks(visible, today), sortMode),
+    [visible, today, sortMode],
   )
-  const nodes = useMemo(() => buildTaskTree(todayTasks, tasks), [todayTasks, tasks])
+  const nodes = useMemo(() => buildTaskTree(todayTasks, visible), [todayTasks, visible])
   const progress = useMemo(() => selectTodayProgress(tasks, today), [tasks, today])
   const streak = useMemo(() => selectStreak(tasks, snapshots, today), [tasks, snapshots, today])
   const totalMinutes = selectTotalEstimatedMinutes(todayTasks)
@@ -49,7 +58,6 @@ export function TodayPanel({ today }: { today: string }): JSX.Element {
         >
           <option value="manual">手动排序</option>
           <option value="priority">按优先级</option>
-          <option value="due">按截止日期</option>
           <option value="created">按创建时间</option>
         </select>
       </div>
@@ -69,9 +77,11 @@ export function TodayPanel({ today }: { today: string }): JSX.Element {
 
         {todayTasks.length === 0 ? (
           <p className="empty">
-            {progress.completed > 0
-              ? `今天的任务全部完成，共 ${progress.completed} 件 🎉`
-              : '今天还没有安排任务，从左边挑几件吧'}
+            {tagFilter.length > 0
+              ? '当前筛选下没有今日待办。'
+              : progress.completed > 0
+                ? `今天的任务全部完成，共 ${progress.completed} 件 🎉`
+                : '今天还没有安排任务，从左边挑几件吧'}
           </p>
         ) : (
           <ul className="task-list">
@@ -83,6 +93,7 @@ export function TodayPanel({ today }: { today: string }): JSX.Element {
                 context="today"
                 index={index}
                 listLength={nodes.length}
+                onEdit={onEdit}
                 onToggle={actions.toggleComplete}
                 onMoveToToday={actions.moveToToday}
                 onMoveToPool={actions.moveToPool}

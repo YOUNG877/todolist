@@ -54,7 +54,7 @@ function makeState(
     snapshots: {},
     settings: { ...DEFAULT_SETTINGS },
     lastSettledDate: today,
-    ui: { lastRolloverNotice: null, sortMode: 'manual', view: 'board', calendarMode: 'count', expandedCompletedDates: [] },
+    ui: { lastRolloverNotice: null, sortMode: 'manual', view: 'board', calendarMode: 'count', tagFilter: [], expandedCompletedDates: [] },
     updatedAt: at(2025, 5, 31).toISOString(),
     ...overrides,
   }
@@ -434,6 +434,142 @@ describe('App 真实渲染（jsdom）', () => {
     fireEvent.change(within(dialog).getByLabelText('起'), { target: { value: '2024-01-01' } })
 
     expect(within(dialog).getByLabelText('导出内容预览').textContent).toContain('上一年完成的')
+  })
+
+  it('待办池：选择框在最前、完成框在行尾，全选按钮可一次选中全部', () => {
+    seedStorage(
+      makeState('2025-06-01', [
+        makeTask({ title: '甲', status: 'pool', scheduledDate: null }),
+        makeTask({ title: '乙', status: 'pool', scheduledDate: null }),
+      ]),
+    )
+    render(<App />)
+
+    const pool = screen.getByRole('region', { name: '待办池' })
+    const completeBox = within(pool).getByRole('checkbox', { name: '完成任务：甲' })
+    const row = completeBox.closest('.task') as HTMLElement
+    const selectBox = within(row).getByRole('checkbox', { name: '选中：甲' })
+
+    // 选择框在完成框之前（DOM 顺序），也就是「移到前面」
+    expect(
+      selectBox.compareDocumentPosition(completeBox) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+
+    // 全选
+    fireEvent.click(within(pool).getByRole('checkbox', { name: '全选待办池任务' }))
+    expect(within(pool).getByRole('button', { name: '安排选中的 2 个到今日' })).toBeTruthy()
+
+    // 再点一次取消全选
+    fireEvent.click(within(pool).getByRole('checkbox', { name: '全选待办池任务' }))
+    expect(within(pool).getByRole('button', { name: '安排选中的 0 个到今日' })).toBeTruthy()
+  })
+
+  it('编辑任务：可以设置优先级与标签，标签会显示在条目上', () => {
+    seedStorage(makeState('2025-06-01', [makeTask({ title: '写周报' })]))
+    render(<App />)
+
+    // 点标题进入编辑
+    fireEvent.click(screen.getByRole('button', { name: '写周报' }))
+    const dialog = screen.getByRole('dialog', { name: '编辑任务' })
+
+    fireEvent.change(within(dialog).getByLabelText('优先级'), { target: { value: 'high' } })
+    const tagInput = within(dialog).getByLabelText('添加标签')
+    fireEvent.change(tagInput, { target: { value: '工作' } })
+    fireEvent.keyDown(tagInput, { key: 'Enter' })
+    fireEvent.change(tagInput, { target: { value: '重要' } })
+    fireEvent.keyDown(tagInput, { key: 'Enter' })
+
+    fireEvent.click(within(dialog).getByRole('button', { name: '保存' }))
+
+    expect(screen.queryByRole('dialog', { name: '编辑任务' })).toBeNull()
+    const today = screen.getByRole('region', { name: '今日待办' })
+    expect(within(today).getByText('优先级 高')).toBeTruthy()
+    expect(within(today).getByText('#工作')).toBeTruthy()
+    expect(within(today).getByText('#重要')).toBeTruthy()
+  })
+
+  it('编辑任务：标题为空时拒绝保存并提示', () => {
+    seedStorage(makeState('2025-06-01', [makeTask({ title: '写周报' })]))
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: '写周报' }))
+    const dialog = screen.getByRole('dialog', { name: '编辑任务' })
+    fireEvent.change(within(dialog).getByLabelText('标题'), { target: { value: '   ' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: '保存' }))
+
+    expect(within(dialog).getByText('标题不能为空')).toBeTruthy()
+  })
+
+  it('标签筛选：选中标签后各面板只剩命中的任务，可一键清除', () => {
+    seedStorage(
+      makeState('2025-06-01', [
+        makeTask({ title: '工作的事', tags: ['工作'] }),
+        makeTask({ title: '学习的事', tags: ['学习'] }),
+      ]),
+    )
+    render(<App />)
+
+    expect(titlesIn('今日待办')).toHaveLength(2)
+
+    fireEvent.click(screen.getByRole('button', { name: '按标签筛选' }))
+    const tagOption = screen.getByText('#工作', { selector: '.menu__check' })
+    fireEvent.click(tagOption.querySelector('input') as HTMLInputElement)
+
+    expect(titlesIn('今日待办')).toEqual(['工作的事'])
+    // 顶部出现筛选提示条
+    expect(screen.getByText(/正在按标签筛选/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '清除筛选' }))
+    expect(titlesIn('今日待办')).toHaveLength(2)
+  })
+
+  it('标签管理：重命名会作用到所有任务，且不删除任务', () => {
+    seedStorage(
+      makeState('2025-06-01', [
+        makeTask({ title: '甲', tags: ['旧名'] }),
+        makeTask({ title: '乙', tags: ['旧名'] }),
+      ]),
+    )
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: '按标签筛选' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '管理标签…' }))
+
+    const dialog = screen.getByRole('dialog', { name: '管理标签' })
+    expect(within(dialog).getByText('2 个任务')).toBeTruthy()
+
+    fireEvent.click(within(dialog).getByRole('button', { name: '重命名' }))
+    const input = within(dialog).getByLabelText('重命名标签 旧名')
+    fireEvent.change(input, { target: { value: '新名' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: '确定' }))
+
+    expect(within(dialog).getByText('#新名')).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: '完成' }))
+
+    // 任务还在，只是标签换了
+    expect(titlesIn('今日待办')).toHaveLength(2)
+    expect(screen.getAllByText('#新名').length).toBeGreaterThan(0)
+  })
+
+  it('悬浮小窗模式（?widget=1）只渲染今天的待办，不渲染主界面', () => {
+    window.history.replaceState({}, '', '/?widget=1')
+    try {
+      seedStorage(
+        makeState('2025-06-01', [
+          makeTask({ title: '今天的事' }),
+          makeTask({ title: '池子里的事', status: 'pool', scheduledDate: null }),
+        ]),
+      )
+      render(<App />)
+
+      expect(screen.getByRole('checkbox', { name: '完成任务：今天的事' })).toBeTruthy()
+      // 主界面独有的面板与控件不出现
+      expect(screen.queryByRole('region', { name: '待办池' })).toBeNull()
+      expect(screen.queryByRole('region', { name: '已完成回顾' })).toBeNull()
+      expect(screen.queryByRole('button', { name: /时间调试/ })).toBeNull()
+    } finally {
+      window.history.replaceState({}, '', '/')
+    }
   })
 
   it('日历可以翻月，并能在翻走后回到今天', () => {

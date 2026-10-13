@@ -14,6 +14,9 @@ export interface TaskNodeProps {
   listLength?: number
   leading?: ReactNode
   trailing?: ReactNode
+  /** 把完成勾选框放到行尾（待办池用：最前面留给批量选择框） */
+  completionLast?: boolean
+  onEdit?: (id: string) => void
   onToggle: (id: string) => void
   onMoveToToday: (id: string) => void
   onMoveToPool: (id: string) => void
@@ -35,6 +38,8 @@ export function TaskNode({
   listLength = 1,
   leading,
   trailing,
+  completionLast = false,
+  onEdit,
   onToggle,
   onMoveToToday,
   onMoveToPool,
@@ -67,6 +72,8 @@ export function TaskNode({
         leading={leading}
         trailing={trailing}
         progress={progress}
+        completionLast={completionLast}
+        onEdit={onEdit}
         onToggle={onToggle}
         onMoveToToday={onMoveToToday}
         onMoveToPool={onMoveToPool}
@@ -118,6 +125,7 @@ export function TaskNode({
                 today={today}
                 context={context}
                 depth={1}
+                onEdit={onEdit}
                 onToggle={onToggle}
                 onMoveToToday={onMoveToToday}
                 onMoveToPool={onMoveToPool}

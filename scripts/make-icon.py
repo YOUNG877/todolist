@@ -18,11 +18,14 @@ CHECK = [(70, 133), (111, 174), (188, 86)]
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "build"
+ASSET_DIR = ROOT / "electron" / "assets"
 ICO_SIZES = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
+TRAY_SIZE = 32
 
 
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    ASSET_DIR.mkdir(parents=True, exist_ok=True)
 
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
@@ -44,6 +47,15 @@ def main() -> None:
 
     print(f"已生成 {png_path}")
     print(f"已生成 {ico_path}（含 {len(ICO_SIZES)} 种尺寸，最大 {SIZE}x{SIZE}）")
+
+    # 托盘图标要单独缩一份放进 electron/assets：
+    # 主进程运行时需要读它，而 build/ 是 buildResources，不会被打进安装包。
+    tray_path = ASSET_DIR / "tray.png"
+    img.resize((TRAY_SIZE, TRAY_SIZE), Image.LANCZOS).save(tray_path)
+    app_icon_path = ASSET_DIR / "icon.png"
+    img.save(app_icon_path)
+    print(f"已生成 {tray_path}（{TRAY_SIZE}x{TRAY_SIZE}，托盘用）")
+    print(f"已生成 {app_icon_path}（窗口图标用）")
 
 
 if __name__ == "__main__":

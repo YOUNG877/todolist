@@ -1,4 +1,4 @@
-/**
+﻿/**
  * flow.test.ts —— 需求文档 11.2「跨天测试脚本」的自动化版本
  *
  * 直接跑用户四条核心诉求的闭环：
@@ -23,7 +23,7 @@ function baseState(today: string): PersistedState {
     snapshots: {},
     settings: { ...DEFAULT_SETTINGS },
     lastSettledDate: today,
-    ui: { lastRolloverNotice: null, sortMode: 'manual', view: 'board', calendarMode: 'count', expandedCompletedDates: [] },
+    ui: { lastRolloverNotice: null, sortMode: 'manual', view: 'board', calendarMode: 'count', tagFilter: [], expandedCompletedDates: [] },
     updatedAt: at(2025, 6, 1).toISOString(),
   }
 }

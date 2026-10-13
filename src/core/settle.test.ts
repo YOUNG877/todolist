@@ -1,4 +1,4 @@
-/**
+﻿/**
  * settle.test.ts —— 需求文档 8.4 要求的 10 条核心用例
  *
  * 覆盖映射：
@@ -73,6 +73,7 @@ const emptyUi: UiState = {
   sortMode: 'manual',
   view: 'board',
   calendarMode: 'count',
+  tagFilter: [],
   expandedCompletedDates: [],
 }
 

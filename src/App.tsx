@@ -7,19 +7,31 @@ import { DebugPanel } from './components/DebugPanel'
 import { ExportDialog } from './components/ExportDialog'
 import { HistoryView } from './components/HistoryView'
 import { RolloverNotice } from './components/RolloverNotice'
+import { TagManagerDialog } from './components/TagManagerDialog'
+import { TaskEditorModal } from './components/TaskEditorModal'
 import { TodayDonePanel } from './components/TodayDonePanel'
 import { TodayPanel } from './components/TodayPanel'
 import { TopBar } from './components/TopBar'
+import { WidgetView } from './components/WidgetView'
+
+/** 悬浮小窗模式（?widget=1），由 Electron 主进程在关闭主窗口时打开 */
+function isWidgetMode(): boolean {
+  return new URLSearchParams(window.location.search).get('widget') === '1'
+}
 
 export default function App(): JSX.Element {
   const hydrated = useStore((s) => s.hydrated)
   const settings = useStore((s) => s.settings)
   const storageWarning = useStore((s) => s.storageWarning)
   const view = useStore((s) => s.ui.view)
+  const tagFilter = useStore((s) => s.ui.tagFilter)
   // 订阅结算结果，保证跨天 / 时间旅行后整个界面跟着换日期
   const settledToday = useStore((s) => s.lastSettle?.today ?? null)
   const [debugOpen, setDebugOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [tagsOpen, setTagsOpen] = useState(false)
+  const [editorTaskId, setEditorTaskId] = useState<string | null>(null)
+  const widget = isWidgetMode()
 
   const today = settledToday ?? logicalDateOf(clock.now(), settings.dayStartHour)
 
@@ -81,6 +93,12 @@ export default function App(): JSX.Element {
     )
   }
 
+  if (widget) {
+    return <WidgetView today={today} onEditTask={setEditorTaskId} />
+  }
+
+  const openEditor = (id: string): void => setEditorTaskId(id)
+
   return (
     <div className="app">
       <h1 className="visually-hidden">待办事项管理</h1>
@@ -89,6 +107,7 @@ export default function App(): JSX.Element {
         debugOpen={debugOpen}
         onToggleDebug={() => setDebugOpen((v) => !v)}
         onOpenExport={() => setExportOpen(true)}
+        onOpenTags={() => setTagsOpen(true)}
       />
 
       {storageWarning && (
@@ -98,22 +117,53 @@ export default function App(): JSX.Element {
         </div>
       )}
 
+      {tagFilter.length > 0 && (
+        <div className="banner banner--filter" role="status">
+          <span className="banner__icon" aria-hidden="true">
+            #
+          </span>
+          <span>
+            正在按标签筛选：
+            {tagFilter.map((tag) => (
+              <span key={tag} className="chip chip--tag banner__chip">
+                #{tag}
+              </span>
+            ))}
+          </span>
+          <div className="topbar__spacer" />
+          <button type="button" className="btn btn--xs" onClick={actions.clearTagFilter}>
+            清除筛选
+          </button>
+        </div>
+      )}
+
       <RolloverNotice today={today} />
       {debugOpen && <DebugPanel today={today} />}
 
       {view === 'history' ? (
         <main className="layout layout--single">
-          <HistoryView today={today} onOpenExport={() => setExportOpen(true)} />
+          <HistoryView today={today} onOpenExport={() => setExportOpen(true)} onEdit={openEditor} />
         </main>
       ) : (
         <main className="layout">
-          <BacklogPanel today={today} />
-          <TodayPanel today={today} />
-          <TodayDonePanel today={today} />
+          <BacklogPanel today={today} onEdit={openEditor} />
+          <TodayPanel today={today} onEdit={openEditor} />
+          <TodayDonePanel today={today} onEdit={openEditor} />
         </main>
       )}
 
       {exportOpen && <ExportDialog today={today} onClose={() => setExportOpen(false)} />}
+      {tagsOpen && <TagManagerDialog onClose={() => setTagsOpen(false)} />}
+      {editorTaskId && (
+        <TaskEditorModal
+          taskId={editorTaskId}
+          onClose={() => setEditorTaskId(null)}
+          onManageTags={() => {
+            setEditorTaskId(null)
+            setTagsOpen(true)
+          }}
+        />
+      )}
     </div>
   )
 }

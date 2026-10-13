@@ -1523,6 +1523,281 @@ code {
   }
 }
 
+/* ---------- 待办池的批量选择 ---------- */
+
+/* 放在行首的批量选择框：方框，跟行尾的圆形「完成」区分开 */
+.task__select {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin-top: 3px;
+  accent-color: var(--c-primary);
+  cursor: pointer;
+}
+
+.checkbox-field--head {
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+/* ---------- 标签编辑与筛选 ---------- */
+
+.task__title--button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.task__title--button:hover {
+  color: var(--c-primary);
+}
+
+.tag-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  min-height: 38px;
+}
+
+.tag-editor__input {
+  flex: 1;
+  min-width: 100px;
+  padding: 4px var(--sp-2);
+  background: none;
+  border: none;
+  font-size: var(--fs-sm);
+}
+
+.tag-editor__input:focus {
+  outline: none;
+}
+
+.chip__remove {
+  margin-left: 4px;
+  padding: 0 2px;
+  color: inherit;
+  opacity: 0.6;
+  font-size: 10px;
+}
+
+.chip__remove:hover {
+  opacity: 1;
+}
+
+.tag-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+}
+
+.tag-suggest__item {
+  cursor: pointer;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-3);
+}
+
+.form-error {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--c-danger-soft);
+  color: var(--c-danger);
+  font-size: var(--fs-sm);
+}
+
+.banner--filter {
+  background: var(--c-primary-soft);
+  color: var(--c-text);
+}
+
+.banner__chip {
+  margin-left: var(--sp-2);
+}
+
+.menu--tags {
+  min-width: 200px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.menu__check {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.menu__check:hover {
+  background: var(--c-surface-hover);
+}
+
+.menu__check input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--c-primary);
+  cursor: pointer;
+}
+
+.menu__empty {
+  padding: var(--sp-3);
+  color: var(--c-text-3);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+}
+
+.tag-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.tag-list__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- 桌面悬浮小窗（Electron ?widget=1） ---------- */
+
+.widget {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+}
+
+.widget--collapsed {
+  height: auto;
+}
+
+/* 顶栏整条可拖动窗口；里面的按钮要显式排除，否则点不动 */
+.widget__bar {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3);
+  background: var(--c-primary);
+  color: var(--c-on-primary);
+}
+
+.widget__tools {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.widget__title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-weight: var(--fw-semibold);
+}
+
+.widget__count {
+  font-size: var(--fs-xs);
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+.widget__btn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.widget__btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.widget__progress {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.widget__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--sp-2);
+}
+
+.widget__empty {
+  padding: var(--sp-6) var(--sp-3);
+  text-align: center;
+  color: var(--c-text-3);
+  font-size: var(--fs-xs);
+}
+
+/* 小窗里条目更紧凑：去掉大内边距和悬停特效 */
+.task-list--compact {
+  gap: 4px;
+}
+
+.task-list--compact .task {
+  padding: 6px var(--sp-2) 6px var(--sp-3);
+  background: var(--c-surface-2);
+  border-color: transparent;
+}
+
+.task-list--compact .task:hover {
+  border-color: var(--c-border);
+  box-shadow: none;
+}
+
+.task-list--compact .task__title {
+  font-size: var(--fs-sm);
+}
+
+.task-list--compact .task__actions .icon-btn,
+.task-list--compact .task__actions .btn {
+  display: none;
+}
+
+.task-list--compact .task__actions .icon-btn--danger {
+  display: grid;
+}
+
+.task-list--compact .subtask-list {
+  margin-left: 16px;
+  padding-left: var(--sp-3);
+}
+
 /* ---------- 响应式 ---------- */
 
 @media (max-width: 1279px) {

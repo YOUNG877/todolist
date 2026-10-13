@@ -15,10 +15,17 @@ export interface TaskItemProps {
   /** 在所属列表中的下标，用于上下移动 */
   index?: number
   listLength?: number
-  /** 插在勾选框之前的额外内容 */
+  /** 插在勾选框之前的额外内容（例如待办池的批量选择框） */
   leading?: ReactNode
-  /** 插在操作区末尾的额外内容（例如待办池的批量选择框） */
+  /** 插在操作区末尾的额外内容（例如待办池的全选相关控件） */
   trailing?: ReactNode
+  /**
+   * 把「完成」勾选框放到行尾。
+   * 待办池用它：最前面留给批量选择框，完成操作退到右边，避免两个圆圈挤在一起。
+   */
+  completionLast?: boolean
+  /** 点标题进入编辑 */
+  onEdit?: (id: string) => void
   onToggle: (id: string) => void
   onMoveToToday: (id: string) => void
   onMoveToPool: (id: string) => void
@@ -53,6 +60,8 @@ export function TaskItem({
   listLength = 1,
   leading,
   trailing,
+  completionLast = false,
+  onEdit,
   onToggle,
   onMoveToToday,
   onMoveToPool,
@@ -65,6 +74,28 @@ export function TaskItem({
   const severe = task.carryOverCount >= 3
   const isSub = depth > 0
 
+  const checkButton = (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={done}
+      aria-label={`${done ? '取消完成' : '完成任务'}：${task.title}`}
+      title={done ? '取消完成' : '标记完成'}
+      className="task__check"
+      onClick={() => onToggle(task.id)}
+    >
+      <CheckIcon />
+    </button>
+  )
+
+  const titleNode = onEdit ? (
+    <button type="button" className="task__title task__title--button" onClick={() => onEdit(task.id)}>
+      {task.title}
+    </button>
+  ) : (
+    <span className="task__title">{task.title}</span>
+  )
+
   return (
     <div
       className={['task', `task--p-${task.priority}`, done ? 'is-done' : '', isSub ? 'task--sub' : '']
@@ -72,21 +103,14 @@ export function TaskItem({
         .join(' ')}
     >
       {leading}
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={done}
-        aria-label={`${done ? '取消完成' : '完成任务'}：${task.title}`}
-        className="task__check"
-        onClick={() => onToggle(task.id)}
-      >
-        <CheckIcon />
-      </button>
+      {!completionLast && checkButton}
 
       <div className="task__body">
-        <span className="task__title">{task.title}</span>
+        {titleNode}
 
         <div className="task__meta">
+          {task.pinned && <span className="chip chip--warn">必做</span>}
+
           {task.carryOverCount > 0 && (
             <span className="chip chip--warn" data-severe={severe}>
               顺延 {task.carryOverCount >= 30 ? '30+' : task.carryOverCount} 天
@@ -187,6 +211,8 @@ export function TaskItem({
             移回池子
           </button>
         )}
+
+        {completionLast && checkButton}
 
         <button
           type="button"

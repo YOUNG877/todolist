@@ -172,12 +172,13 @@ function normalizeUi(raw: unknown): UiState {
           date: asString(notice.date),
         }
       : null,
-    sortMode:
-      sortMode === 'priority' || sortMode === 'due' || sortMode === 'created'
-        ? sortMode
-        : 'manual',
+    // 界面已去掉「按截止日期」排序（用户没在用截止日期），旧数据里的 due 归一到手动排序
+    sortMode: sortMode === 'priority' || sortMode === 'created' ? sortMode : 'manual',
     view: r.view === 'history' ? 'history' : 'board',
     calendarMode: r.calendarMode === 'detail' ? 'detail' : 'count',
+    tagFilter: Array.isArray(r.tagFilter)
+      ? [...new Set(r.tagFilter.filter((v): v is string => typeof v === 'string'))]
+      : [],
     expandedCompletedDates: Array.isArray(r.expandedCompletedDates)
       ? r.expandedCompletedDates.filter((v): v is string => typeof v === 'string')
       : [],
@@ -279,6 +280,7 @@ export function createInitialState(now: Date = clock.now()): PersistedState {
       sortMode: 'manual',
       view: 'board',
       calendarMode: 'count',
+      tagFilter: [],
       expandedCompletedDates: [],
     },
     updatedAt: now.toISOString(),

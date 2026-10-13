@@ -587,6 +587,62 @@ export const actions = {
     )
   },
 
+  /** 切换单个标签的筛选状态（多选，OR 语义） */
+  toggleTagFilter(tag: string): void {
+    useStore.setState(
+      produce((draft: StoreState) => {
+        const list = draft.ui.tagFilter
+        const idx = list.indexOf(tag)
+        if (idx >= 0) list.splice(idx, 1)
+        else list.push(tag)
+      }),
+    )
+  },
+
+  clearTagFilter(): void {
+    useStore.setState(
+      produce((draft: StoreState) => {
+        draft.ui.tagFilter = []
+      }),
+    )
+  },
+
+  /** 重命名标签：把旧标签从所有任务上换成新标签，合并重复项 */
+  renameTag(from: string, to: string): void {
+    const next = to.trim()
+    if (!next || next === from) return
+    const now = clock.now().toISOString()
+    useStore.setState(
+      produce((draft: StoreState) => {
+        for (const task of draft.tasks) {
+          if (!task.tags.includes(from)) continue
+          const replaced = task.tags.map((t) => (t === from ? next : t))
+          // 同一个任务上重名只保留一个
+          task.tags = [...new Set(replaced)]
+          task.updatedAt = now
+        }
+        draft.ui.tagFilter = draft.ui.tagFilter.map((t) => (t === from ? next : t))
+        draft.updatedAt = now
+      }),
+    )
+  },
+
+  /** 删除标签：从所有任务上摘掉，并从筛选条件里移除 */
+  deleteTag(tag: string): void {
+    const now = clock.now().toISOString()
+    useStore.setState(
+      produce((draft: StoreState) => {
+        for (const task of draft.tasks) {
+          if (!task.tags.includes(tag)) continue
+          task.tags = task.tags.filter((t) => t !== tag)
+          task.updatedAt = now
+        }
+        draft.ui.tagFilter = draft.ui.tagFilter.filter((t) => t !== tag)
+        draft.updatedAt = now
+      }),
+    )
+  },
+
   toggleCompletedDate(date: string): void {
     useStore.setState(
       produce((draft: StoreState) => {

@@ -83,12 +83,15 @@ const chrome = attachPort
 
 /** 等待 DevTools 端口可用，并返回页面目标的 ws 地址 */
 async function findPageTarget(debugPort = port) {
+  // --match <子串>：有多个页面目标时（例如主窗口 + 悬浮小窗）按 URL 挑选
+  const match = typeof args.match === 'string' ? args.match : null
   for (let i = 0; i < 60; i += 1) {
     try {
       const res = await fetch(`http://127.0.0.1:${debugPort}/json/list`)
       const targets = await res.json()
-      const page = targets.find((t) => t.type === 'page' && t.webSocketDebuggerUrl)
-      if (page) return page.webSocketDebuggerUrl
+      const pages = targets.filter((t) => t.type === 'page' && t.webSocketDebuggerUrl)
+      const picked = match ? pages.find((t) => (t.url ?? '').includes(match)) : pages[0]
+      if (picked) return picked.webSocketDebuggerUrl
     } catch {
       /* 端口还没起来 */
     }
@@ -102,6 +105,7 @@ function createClient(wsUrl) {
   let nextId = 1
   const pending = new Map()
   const events = []
+  const requestTimeoutMs = Number(args['timeout'] ?? 20000)
 
   ws.addEventListener('message', (event) => {
     const msg = JSON.parse(event.data)
@@ -124,7 +128,21 @@ function createClient(wsUrl) {
     new Promise((res, rej) => {
       const id = nextId
       nextId += 1
-      pending.set(id, { resolve: res, reject: rej })
+      // 有些调用会一直不返回（例如对隐藏窗口截图），加超时避免脚本挂死
+      const timer = setTimeout(() => {
+        pending.delete(id)
+        rej(new Error(`CDP ${method} 超时（${requestTimeoutMs}ms）`))
+      }, requestTimeoutMs)
+      pending.set(id, {
+        resolve: (v) => {
+          clearTimeout(timer)
+          res(v)
+        },
+        reject: (e) => {
+          clearTimeout(timer)
+          rej(e)
+        },
+      })
       ws.send(JSON.stringify({ id, method, params }))
     })
 

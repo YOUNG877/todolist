@@ -15,9 +15,11 @@ import { TaskNode } from './TaskNode'
 export function HistoryView({
   today,
   onOpenExport,
+  onEdit,
 }: {
   today: string
   onOpenExport: () => void
+  onEdit: (id: string) => void
 }): JSX.Element {
   const tasks = useStore((s) => s.tasks)
   const snapshots = useStore((s) => s.snapshots)
@@ -150,6 +152,7 @@ export function HistoryView({
                   today={today}
                   context="done"
                   allowSubtasks={false}
+                  onEdit={onEdit}
                   onToggle={actions.toggleComplete}
                   onMoveToToday={actions.moveToToday}
                   onMoveToPool={actions.moveToPool}

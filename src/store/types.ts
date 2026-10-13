@@ -102,6 +102,8 @@ export interface UiState {
   view: ViewMode
   /** 日历格子显示件数还是明细 */
   calendarMode: CalendarMode
+  /** 按标签筛选（多选，任一命中即显示）；空数组表示不筛选 */
+  tagFilter: string[]
   /** 回顾页中处于展开状态的历史分组日期（保留字段，供后续扩展） */
   expandedCompletedDates: string[]
 }

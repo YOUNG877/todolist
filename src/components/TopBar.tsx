@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { formatDisplayDate } from '@/core/date'
+import { selectAllTags } from '@/core/selectors'
 import { actions, useStore } from '@/store/store'
 
 export interface TopBarProps {
@@ -7,6 +8,7 @@ export interface TopBarProps {
   debugOpen: boolean
   onToggleDebug: () => void
   onOpenExport: () => void
+  onOpenTags: () => void
 }
 
 export function TopBar({
@@ -14,12 +16,19 @@ export function TopBar({
   debugOpen,
   onToggleDebug,
   onOpenExport,
+  onOpenTags,
 }: TopBarProps): JSX.Element {
   const settings = useStore((s) => s.settings)
-  const taskCount = useStore((s) => s.tasks.length)
+  const tasks = useStore((s) => s.tasks)
+  const taskCount = tasks.length
   const view = useStore((s) => s.ui.view)
+  const tagFilter = useStore((s) => s.ui.tagFilter)
+  // 注意：选择器必须返回稳定引用。selectAllTags 每次都生成新数组，
+  // 直接写进 useStore(...) 会让 zustand 判定快照变化、触发无限重渲染。
+  const allTags = useMemo(() => selectAllTags(tasks), [tasks])
   const fileRef = useRef<HTMLInputElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [tagMenuOpen, setTagMenuOpen] = useState(false)
 
   const exportJSON = (): void => {
     setMenuOpen(false)
@@ -81,6 +90,66 @@ export function TopBar({
             载入示例数据
           </button>
         )}
+
+        <div className="menu-wrap">
+          <button
+            type="button"
+            className={`btn btn--sm${tagFilter.length > 0 ? ' is-active' : ''}`}
+            aria-expanded={tagMenuOpen}
+            aria-label="按标签筛选"
+            title="按标签筛选"
+            onClick={() => setTagMenuOpen((v) => !v)}
+          >
+            <span aria-hidden="true">#</span>
+            <span className="btn__label">
+              标签{tagFilter.length > 0 ? ` ${tagFilter.length}` : ''}
+            </span>
+          </button>
+
+          {tagMenuOpen && (
+            <>
+              <div className="menu-backdrop" onClick={() => setTagMenuOpen(false)} />
+              <div className="menu menu--tags" role="menu">
+                {allTags.length === 0 ? (
+                  <p className="menu__empty">还没有标签。点下面「管理标签」或在任务编辑里添加。</p>
+                ) : (
+                  allTags.map((tag) => (
+                    <label key={tag} className="menu__check">
+                      <input
+                        type="checkbox"
+                        checked={tagFilter.includes(tag)}
+                        onChange={() => actions.toggleTagFilter(tag)}
+                      />
+                      #{tag}
+                    </label>
+                  ))
+                )}
+                <div className="menu__sep" />
+                {tagFilter.length > 0 && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="menu__item"
+                    onClick={() => actions.clearTagFilter()}
+                  >
+                    清除筛选
+                  </button>
+                )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="menu__item"
+                  onClick={() => {
+                    setTagMenuOpen(false)
+                    onOpenTags()
+                  }}
+                >
+                  管理标签…
+                </button>
+              </div>
+            </>
+          )}
+        </div>
 
         <button
           type="button"
