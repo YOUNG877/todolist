@@ -107,6 +107,39 @@ export function startOfMonth(dateStr: string): string {
   return `${dateStr.slice(0, 7)}-01`
 }
 
+/* -------------------------------------------------------------------------- */
+/* 工作日（需求：周六日算节假日，不计入延期天数）                                 */
+/* -------------------------------------------------------------------------- */
+
+/** 周六或周日 */
+export function isWeekend(dateStr: string): boolean {
+  const day = parseLocalDate(dateStr).getDay() // 0=周日 6=周六
+  return day === 0 || day === 6
+}
+
+/**
+ * 半开区间 (from, to] 内的**工作日**天数，也就是「真正该算作拖延的天数」。
+ *
+ * 例（默认不计周末）：
+ *   周五 → 周一    = 1（只有周一算）
+ *   周五 → 周六    = 0
+ *   周一 → 周二    = 1
+ *   周一 → 下周一  = 5
+ *
+ * @param countWeekends true 时退化为普通自然日天数（等价于 diffDays）
+ */
+export function businessDaysBetween(from: string, to: string, countWeekends = false): number {
+  const total = diffDays(from, to)
+  if (total <= 0) return 0
+  if (countWeekends) return total
+
+  let days = 0
+  for (let i = 1; i <= total; i += 1) {
+    if (!isWeekend(addDays(from, i))) days += 1
+  }
+  return days
+}
+
 /** 按月偏移，返回该月 1 号 */
 export function addMonths(dateStr: string, months: number): string {
   const d = parseLocalDate(startOfMonth(dateStr))

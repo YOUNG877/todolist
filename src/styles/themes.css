@@ -29,6 +29,10 @@
   --c-warn: #f59e0b;
   --c-warn-soft: #fef4e3;
 
+  /* 追踪：与主色、危险色都拉开，避免和「完成」混淆 */
+  --c-track: #8b5cf6;
+  --c-track-soft: #f3eeff;
+
   --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08);
   --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.1);
   --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.16);
@@ -67,6 +71,9 @@
   --c-danger-soft: #2e1a1a;
   --c-warn: #ffb454;
   --c-warn-soft: #2e2415;
+
+  --c-track: #a78bfa;
+  --c-track-soft: #241f38;
 
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);

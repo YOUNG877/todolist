@@ -9,7 +9,7 @@
 
 import { produce } from 'immer'
 import type { DaySnapshot, PersistedState, Settings, Task } from '@/store/types'
-import { MS_PER_DAY, addDays, diffDays, logicalDateOf } from './date'
+import { MS_PER_DAY, addDays, businessDaysBetween, logicalDateOf } from './date'
 
 /** 回收站保留天数，超期物理删除（FR-10） */
 export const PURGE_AFTER_DAYS = 30
@@ -104,7 +104,9 @@ function rollTask(
   settings: Settings,
 ): { kind: 'rolled' | 'pool' | 'ask'; info: RolledInfo } {
   const from = task.scheduledDate as string
-  const days = Math.max(1, diffDays(from, target))
+  // 周六日算节假日：只是延到周末不增加延期天数。
+  // 逐日推演时每一步最多 +1，跨周末的那一步就是 +0。
+  const days = businessDaysBetween(from, target, settings.countWeekends)
 
   if (settings.rolloverStrategy === 'ask') {
     // ask 策略：保持原样，等待用户在下次启动时决定（边界条件 #12）

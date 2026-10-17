@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { Task } from '@/store/types'
 import { PRIORITY_LABEL } from '@/store/types'
 import { describeRelativeDay } from '@/core/date'
@@ -17,7 +17,7 @@ export interface TaskItemProps {
   listLength?: number
   /** 插在勾选框之前的额外内容（例如待办池的批量选择框） */
   leading?: ReactNode
-  /** 插在操作区末尾的额外内容（例如待办池的全选相关控件） */
+  /** 插在操作区末尾的额外内容 */
   trailing?: ReactNode
   /**
    * 把「完成」勾选框放到行尾。
@@ -30,6 +30,14 @@ export interface TaskItemProps {
   onMoveToToday: (id: string) => void
   onMoveToPool: (id: string) => void
   onDelete: (id: string) => void
+  /** 传入后显示进度滑块（今日待办里用） */
+  onProgressChange?: (id: string, value: number) => void
+  /** 已完成任务：切换「待追踪」 */
+  onToggleTracking?: (id: string) => void
+  /** 已完成任务：设置追踪进度 */
+  onTrackingProgressChange?: (id: string, value: number) => void
+  /** 已完成任务：退回今日待办 */
+  onReopen?: (id: string) => void
   onMove?: (id: string, toIndex: number) => void
   /** 传入后显示「＋」按钮，用来添加二级任务 */
   onAddSubtask?: (id: string) => void
@@ -66,6 +74,10 @@ export function TaskItem({
   onMoveToToday,
   onMoveToPool,
   onDelete,
+  onProgressChange,
+  onToggleTracking,
+  onTrackingProgressChange,
+  onReopen,
   onMove,
   onAddSubtask,
 }: TaskItemProps): JSX.Element {
@@ -73,6 +85,8 @@ export function TaskItem({
   const overdue = !!task.dueDate && !done && task.dueDate < today
   const severe = task.carryOverCount >= 3
   const isSub = depth > 0
+  const showProgress = !isSub && context === 'today' && !!onProgressChange
+  const showTracking = !isSub && task.tracking && done
 
   const checkButton = (
     <button
@@ -98,7 +112,13 @@ export function TaskItem({
 
   return (
     <div
-      className={['task', `task--p-${task.priority}`, done ? 'is-done' : '', isSub ? 'task--sub' : '']
+      className={[
+        'task',
+        `task--p-${task.priority}`,
+        done ? 'is-done' : '',
+        isSub ? 'task--sub' : '',
+        showTracking ? 'task--tracking' : '',
+      ]
         .filter(Boolean)
         .join(' ')}
     >
@@ -122,6 +142,17 @@ export function TaskItem({
               className={`chip${progress.done === progress.total ? ' chip--tag' : ' chip--muted'}`}
             >
               子任务 {progress.done}/{progress.total}
+            </span>
+          )}
+
+          {/* 不在今日列表里时也把进度显示出来，方便回看 */}
+          {!isSub && task.progress > 0 && !showProgress && (
+            <span className="chip chip--muted">完成 {task.progress}%</span>
+          )}
+
+          {showTracking && (
+            <span className="chip chip--track">
+              待追踪{task.trackingProgress > 0 ? ` ${task.trackingProgress}%` : ''}
             </span>
           )}
 
@@ -151,6 +182,42 @@ export function TaskItem({
             <span className="time">{task.completedAt.slice(11, 16)} 完成</span>
           )}
         </div>
+
+        {showProgress && (
+          <div className="task__slider">
+            <span className="task__slider-label">进度</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              className="task__range"
+              aria-label={`完成进度：${task.title}`}
+              value={task.progress}
+              style={{ '--fill': `${task.progress}%` } as CSSProperties}
+              onChange={(e) => onProgressChange?.(task.id, Number(e.target.value))}
+            />
+            <span className="task__slider-value">{task.progress}%</span>
+          </div>
+        )}
+
+        {showTracking && onTrackingProgressChange && (
+          <div className="task__slider task__slider--track">
+            <span className="task__slider-label">追踪</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              className="task__range task__range--track"
+              aria-label={`追踪进度：${task.title}`}
+              value={task.trackingProgress}
+              style={{ '--fill': `${task.trackingProgress}%` } as CSSProperties}
+              onChange={(e) => onTrackingProgressChange(task.id, Number(e.target.value))}
+            />
+            <span className="task__slider-value">{task.trackingProgress}%</span>
+          </div>
+        )}
       </div>
 
       <div className="task__actions">
@@ -188,6 +255,33 @@ export function TaskItem({
             onClick={() => onAddSubtask(task.id)}
           >
             ＋
+          </button>
+        )}
+
+        {/* 已完成的：标记待追踪 / 取消追踪 */}
+        {!isSub && done && onToggleTracking && (
+          <button
+            type="button"
+            className={`btn btn--xs${task.tracking ? ' btn--track-on' : ' btn--ghost'}`}
+            aria-pressed={task.tracking}
+            aria-label={`${task.tracking ? '取消追踪' : '标记为待追踪'}：${task.title}`}
+            title={task.tracking ? '不再追踪这条的结果' : '事情做完了，但结果还要继续跟进'}
+            onClick={() => onToggleTracking(task.id)}
+          >
+            {task.tracking ? '追踪中' : '追踪'}
+          </button>
+        )}
+
+        {/* 已完成的：退回今日待办 */}
+        {!isSub && done && onReopen && (
+          <button
+            type="button"
+            className="btn btn--xs btn--ghost"
+            aria-label={`退回今日待办：${task.title}`}
+            title="退回今日待办，重新做"
+            onClick={() => onReopen(task.id)}
+          >
+            退回今日
           </button>
         )}
 

@@ -45,9 +45,16 @@ export interface Task {
   /** 必做标记，配合 rolloverStrategy = 'pinned-only' 使用 */
   pinned: boolean
 
-  /** 顺延累计天数 */
+  /** 顺延累计天数（默认只算工作日，周末不算延期） */
   carryOverCount: number
   lastRolledAt: string | null
+
+  /** 完成进度 0–100（今日待办里可以直接拖） */
+  progress: number
+  /** 标记为「待追踪」：已完成但还要继续跟进结果 */
+  tracking: boolean
+  /** 追踪进度 0–100 */
+  trackingProgress: number
 
   /** 栏内排序权重（浮点，取中值插入） */
   order: number
@@ -81,6 +88,8 @@ export interface Settings {
   weekStart: 0 | 1
   dateFormat: 'YYYY-MM-DD' | 'MM/DD/YYYY'
   showRolloverNotice: boolean
+  /** 顺延天数是否把周末算进去。默认 false：周六日算节假日，不计入延期 */
+  countWeekends: boolean
   autoCompleteParent: boolean
   hotkeys: boolean
   notifyEnabled: boolean
@@ -130,6 +139,7 @@ export const DEFAULT_SETTINGS: Settings = {
   weekStart: 1,
   dateFormat: 'YYYY-MM-DD',
   showRolloverNotice: true,
+  countWeekends: false,
   autoCompleteParent: true,
   hotkeys: true,
   notifyEnabled: false,

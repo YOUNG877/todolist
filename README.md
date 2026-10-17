@@ -22,10 +22,11 @@
 | M8 | **导出述职数据**：按日期逐日导出 + 月度/标签统计，Markdown / CSV 两种格式 | ✅ 完成 |
 | M9 | **托盘与桌面悬浮小窗**、任务编辑弹窗（优先级/标签/备注）、标签管理与筛选、待办池全选 | ✅ 完成 |
 | M10 | 恢复「按截止日期」排序（编辑弹窗能设截止日期了）、悬浮小窗底部快速加任务 | ✅ 完成 |
-| M11 | 拖拽排序、行内语法（`!高 #标签 @日期`）、Toast 撤销、自动更新、PWA | ⬜ 未开始 |
+| M11 | 任务进度 0–100%、已完成任务「待追踪」与追踪进度、已完成「退回今日」、**周末不计延期**、用户操作手册 | ✅ 完成 |
+| M12 | 拖拽排序、行内语法（`!高 #标签 @日期`）、Toast 撤销、自动更新、PWA | ⬜ 未开始 |
 
-**已验证**：`pnpm typecheck` 无错误 · `pnpm test` **80/80 通过** · `pnpm build` 成功 ·
-1560px / 390px 视口下均无横向溢出 · 安装包 `release/TodoList-0.3.1-setup.exe`。
+**已验证**：`pnpm typecheck` 无错误 · `pnpm test` **99/99 通过** · `pnpm build` 成功 ·
+1560px / 390px 视口下均无横向溢出 · 安装包 `release/TodoList-0.4.0-setup.exe`。
 
 测试构成：
 
@@ -33,8 +34,10 @@
 - `src/store/flow.test.ts`（15 条）—— 需求 11.2 跨天脚本自动化版 + 10 条二级任务用例
 - `src/core/exporter.test.ts`（17 条）—— 导出：范围过滤、子任务归属、统计自洽、Markdown/CSV 结构
 - `src/core/filters.test.ts`（6 条）—— 标签筛选语义（OR、父子任务保留）
-- `src/App.smoke.test.tsx`（23 条，**jsdom 真实 DOM**）—— 渲染、点击、日历、二级任务、导出对话框、
-  任务编辑、标签管理与筛选、待办池全选、悬浮小窗模式，以及 4 条盯住「时间旅行会不会弄丢任务」的回归测试
+- `src/core/workdays.test.ts`（14 条）—— 工作日计算与「周末不计延期」的结算行为
+- `src/App.smoke.test.tsx`（30 条，**jsdom 真实 DOM**）—— 渲染、点击、日历、二级任务、导出对话框、
+  任务编辑、标签管理与筛选、待办池全选、悬浮小窗模式、进度滑块、追踪与退回今日，
+  以及 4 条盯住「时间旅行会不会弄丢任务」的回归测试
 
 ---
 
@@ -56,7 +59,7 @@ pnpm app:pack      # 生成 Windows 安装包到 release/
 ### 桌面应用与安装包
 
 ```bash
-pnpm app:pack      # → release/TodoList-0.3.1-setup.exe（安装包）+ -portable.zip（绿色版）
+pnpm app:pack      # → release/TodoList-0.4.0-setup.exe（安装包）+ -portable.zip（绿色版）
 pnpm app           # 不打包，直接跑桌面应用，便于调试主进程
 pnpm app:sign      # 生成自签名代码签名证书（首次一次性）
 pnpm app:pack:signed   # 用该证书签名打包（需证书密码）
@@ -120,7 +123,7 @@ certutil -user -addstore TrustedPublisher .certs\todolist-codesign.cer
 ```
 
 做完第 3 步，`release/signed/` 里的安装包就不会再被拦。
-验证签名状态：`Get-AuthenticodeSignature release\signed\TodoList-0.3.1-setup.exe`
+验证签名状态：`Get-AuthenticodeSignature release\signed\TodoList-0.4.0-setup.exe`
 —— 导入证书前是 `UnknownError`（签名存在但根证书不受信任），导入后应是 `Valid`。
 
 注意事项：
@@ -272,15 +275,34 @@ logicalDateOf(new Date(2025, 5, 11, 9, 0), 4)  // → '2025-06-11'
 - 顺带清理回收站中超过 30 天的任务
 - 系统时间被回拨（`lastSettledDate > today`）时不回滚数据、不推进游标
 
+### 2.1 周末不计入延期
+
+周六、周日视为节假日，**顺延天数只累加工作日**（core/date.ts 的 usinessDaysBetween）：
+判定口径是半开区间 (from, to] 里的工作日数，所以
+
+| 情况 | 顺延天数 |
+| --- | --- |
+| 周五 → 周六 | 0 |
+| 周五 → 周日 | 0 |
+| 周五 → 下周一 | 1 |
+| 周一 → 下周一 | 5 |
+
+任务本身仍然每天往前挪，只是计数不把周末算进去——周末没干活不该显得拖了很久。
+逐日推演时每步最多 +1，跨周末的那一步就是 +0，所以 settle() 的循环逻辑不用改结构。
+settings.countWeekends = true 可以切回自然日口径（时间调试面板里有开关）。
+
 ### 3. 状态机
 
 | 当前 | 事件 | 结果 | 副作用 |
 | --- | --- | --- | --- |
 | pool | 安排到今日 | today | `scheduledDate = 今天`，order 追加末尾 |
 | today | 勾选完成 | done | `completedAt = now`，`completedDate = 逻辑日期` |
-| today | 跨天未完成 | today | `scheduledDate = 今天`，`carryOverCount += 跨越天数` |
+| today | 跨天未完成 | today | `scheduledDate = 今天`，`carryOverCount += 跨越的**工作日**数` |
 | today | 跨天且超限/非必做 | pool | `scheduledDate = null` |
-| done | 取消完成（含历史） | today | 回到今天，`carryOverCount` **不变** |
+| done | 取消完成 / 退回今日 | today | 回到今天，`carryOverCount` 与 `progress` **不变** |
+| done | 标记待追踪 | done | `tracking = true`，可另记 `trackingProgress` |
+| done | 取消追踪 | done | `tracking = false`，`trackingProgress` 清零 |
+| 任意 | 改完成进度 | 不变 | `progress` 夹到 0–100，与 `completedAt` 无关 |
 | 任意 | 删除 | trash | `deletedAt = now`，记 `prevStatus` |
 | trash | 超过 30 天 | 物理删除 | 由 `settle()` 清理 |
 
@@ -414,6 +436,35 @@ logicalDateOf(new Date(2025, 5, 11, 9, 0), 4)  // → '2025-06-11'
 
 ---
 
+## 进度、追踪与退回
+
+### 完成进度 0–100%（`Task.progress`）
+
+今日待办里每条顶层任务下面有一条进度滑块，拖动即保存。
+
+- 进度与「完成」是**两个独立字段**：进度 100% 不会自动打勾，打勾也不改进度。
+  有些事进度 100% 还要等结果，那正是「追踪」的场景。
+- 不在今日列表里时，进度 > 0 会显示成 `完成 NN%` 角标。
+- 归一化时夹到 0–100（`persist.ts` 的 `clampPercent`），越界数据不会污染界面。
+
+### 待追踪（`Task.tracking` / `Task.trackingProgress`）
+
+「事情做完了，但结果还要继续盯」。在「今日已完成」里点 **追踪**：
+
+- 条目左侧出现紫色标记 + `待追踪 NN%` 角标
+- 出现独立的追踪进度滑块，和完成进度互不影响
+- 取消追踪会清零 `trackingProgress`
+
+配色单独用了 `--c-track`（紫），和主色（蓝）、危险色（红）都拉开，避免和「完成」混淆。
+
+### 退回今日（`actions.reopenTask`）
+
+已完成任务「退回今日」回到今日待办：清空 `completedAt` / `completedDate`，
+`scheduledDate` 设为今天，**但保留 `progress` 与 `tracking`**——重新打开不等于重置。
+与「取消勾选」等价，只是入口更明确。
+
+---
+
 ## 导出述职数据
 
 入口有两个：顶栏 `⋯` 菜单 → 「导出数据」，或「回顾」页右上角的「导出述职数据」。
@@ -542,11 +593,14 @@ logicalDateOf(new Date(2025, 5, 11, 9, 0), 4)  // → '2025-06-11'
   类型用 `feat` / `fix` / `refactor` / `docs` / `test` / `chore`。
 - **不提交**：`node_modules`、`dist`、`release`、`.pnpm-store`、`.shots`、IDE 配置（见 `.gitignore`）。
 - **每次改动都要跑**：`pnpm typecheck && pnpm test`；动过构建配置或 Electron 主进程再跑 `pnpm build`。
+- **每次版本迭代都要更新用户操作手册**：[`docs/用户操作手册.md`](docs/用户操作手册.md)。
+  包括：新增/改动的界面控件、行为变化、常见问题，以及文末「版本记录」补一行。
+  手册是给使用者看的（不写实现细节），和 README 面向开发者的定位分开。
+  发版时先把手册改完再提交，不要等到「以后补」。
 
-## 已知待办（M11）
+## 已知待办（M12）
 
 - 拖拽排序（当前用 ↑ / ↓ 按钮）、`Alt + ↑/↓` 快捷键
-- 任务编辑弹窗（备注、截止日期、标签、预计耗时的可视化编辑；数据层字段已就绪）
 - 行内语法解析（`!高` `#标签` `@日期` `~30m`）、`Ctrl/Cmd + K` 命令面板
 - Toast 撤销（当前删除 / 批量安排 / 清空无撤销，只有二次确认）
 - 日历点某天时的「当时安排了什么 / 顺延出去什么」明细（`DaySnapshot` 里已有 `planned` / `carriedOutIds`）

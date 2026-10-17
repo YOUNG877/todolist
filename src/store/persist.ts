@@ -67,6 +67,11 @@ function asStringArray(value: unknown): string[] {
 const TASK_STATUSES: TaskStatus[] = ['pool', 'today', 'done', 'trash']
 const PRIORITIES: Priority[] = ['none', 'low', 'medium', 'high']
 
+/** 百分比字段统一夹到 0–100 的整数 */
+function clampPercent(value: unknown): number {
+  return Math.min(100, Math.max(0, Math.round(asNumber(value))))
+}
+
 export function normalizeTask(raw: unknown, index: number): Task | null {
   const r = asRecord(raw)
   if (!r) return null
@@ -102,6 +107,9 @@ export function normalizeTask(raw: unknown, index: number): Task | null {
     pinned: asBoolean(r.pinned),
     carryOverCount: Math.max(0, Math.round(asNumber(r.carryOverCount))),
     lastRolledAt: asStringOrNull(r.lastRolledAt),
+    progress: clampPercent(r.progress),
+    tracking: asBoolean(r.tracking),
+    trackingProgress: clampPercent(r.trackingProgress),
     order: asNumber(r.order, index),
     parentId: asStringOrNull(r.parentId),
     recurringId: asStringOrNull(r.recurringId),
@@ -150,6 +158,7 @@ export function normalizeSettings(raw: unknown): Settings {
     weekStart: asNumber(r.weekStart, 1) === 0 ? 0 : 1,
     dateFormat: r.dateFormat === 'MM/DD/YYYY' ? 'MM/DD/YYYY' : 'YYYY-MM-DD',
     showRolloverNotice: asBoolean(r.showRolloverNotice, true),
+    countWeekends: asBoolean(r.countWeekends, false),
     autoCompleteParent: asBoolean(r.autoCompleteParent, true),
     hotkeys: asBoolean(r.hotkeys, true),
     notifyEnabled: asBoolean(r.notifyEnabled, false),

@@ -916,6 +916,8 @@ code {
 .task {
   position: relative;
   display: flex;
+  /* 窄容器（如「今日已完成」栏）里操作按钮会自动掉到下一行，而不是把标题挤断 */
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--sp-2);
   padding: 10px var(--sp-3) 10px var(--sp-4);
@@ -1017,7 +1019,7 @@ code {
 }
 
 .task__body {
-  flex: 1;
+  flex: 1 1 140px;
   min-width: 0;
 }
 
@@ -1038,6 +1040,8 @@ code {
 .task__actions {
   flex: none;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 2px;
   opacity: 0.6;
@@ -1539,6 +1543,111 @@ code {
   margin-left: auto;
   font-size: var(--fs-sm);
   white-space: nowrap;
+}
+
+/* ---------- 进度 / 追踪滑块 ---------- */
+
+.task__slider {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  max-width: 320px;
+}
+
+.task__slider-label {
+  flex: none;
+  width: 2.2em;
+  color: var(--c-text-3);
+  font-size: var(--fs-xs);
+}
+
+.task__slider-value {
+  flex: none;
+  min-width: 2.6em;
+  text-align: right;
+  color: var(--c-text-2);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 滑块轨道用 --fill 表达已走过的比例，比默认样式更容易看出进度 */
+.task__range {
+  flex: 1;
+  min-width: 60px;
+  height: 4px;
+  margin: 0;
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--c-primary) 0%,
+    var(--c-primary) var(--fill, 0%),
+    var(--c-border) var(--fill, 0%),
+    var(--c-border) 100%
+  );
+  cursor: pointer;
+}
+
+.task__range::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--c-primary);
+  border: 2px solid var(--c-surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 25%);
+  cursor: grab;
+}
+
+.task__range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--c-primary);
+  border: 2px solid var(--c-surface);
+  cursor: grab;
+}
+
+.task__range:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 3px;
+}
+
+/* 追踪进度用紫色，跟完成进度区分开 */
+.task__range--track {
+  background: linear-gradient(
+    to right,
+    var(--c-track) 0%,
+    var(--c-track) var(--fill, 0%),
+    var(--c-border) var(--fill, 0%),
+    var(--c-border) 100%
+  );
+}
+
+.task__range--track::-webkit-slider-thumb {
+  background: var(--c-track);
+}
+
+.task__range--track::-moz-range-thumb {
+  background: var(--c-track);
+}
+
+.chip--track {
+  background: var(--c-track-soft);
+  color: var(--c-track);
+  font-weight: var(--fw-medium);
+}
+
+.btn--track-on {
+  background: var(--c-track-soft);
+  color: var(--c-track);
+  border-color: transparent;
+}
+
+/* 待追踪的已完成任务：左侧加一道紫色标记，扫一眼就能分辨 */
+.task--tracking {
+  border-left: 3px solid var(--c-track);
 }
 
 /* ---------- 标签编辑与筛选 ---------- */

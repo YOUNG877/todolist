@@ -12,7 +12,7 @@ import App from '@/App'
 import { clock } from '@/core/clock'
 import { createId } from '@/core/id'
 import { clearStorage, createInitialState, flushSave, STORAGE_KEY } from '@/store/persist'
-import { useStore, type StoreState } from '@/store/store'
+import { actions, useStore, type StoreState } from '@/store/store'
 import { CURRENT_VERSION, DEFAULT_SETTINGS, type PersistedState, type Task } from '@/store/types'
 
 function at(year: number, month: number, day: number, hour = 9, minute = 0): Date {
@@ -35,6 +35,9 @@ function makeTask(partial: Partial<Task> & { title: string }): Task {
     estimateMinutes: null,
     pinned: false,
     carryOverCount: 0,
+    progress: 0,
+    tracking: false,
+    trackingProgress: 0,
     lastRolledAt: null,
     order: 1,
     parentId: null,
@@ -615,6 +618,119 @@ describe('App 真实渲染（jsdom）', () => {
     } finally {
       window.history.replaceState({}, '', '/')
     }
+  })
+
+  it('进度：今日待办的条目有 0–100 的滑块，拖动后数值与状态同步', () => {
+    seedStorage(makeState('2025-06-01', [makeTask({ title: '写方案' })]))
+    render(<App />)
+
+    const slider = screen.getByLabelText('完成进度：写方案') as HTMLInputElement
+    expect(slider.type).toBe('range')
+    expect(slider.min).toBe('0')
+    expect(slider.max).toBe('100')
+    expect(slider.value).toBe('0')
+
+    fireEvent.change(slider, { target: { value: '40' } })
+
+    expect(useStore.getState().tasks.find((t) => t.title === '写方案')?.progress).toBe(40)
+    // 行内数字同步更新
+    const today = screen.getByRole('region', { name: '今日待办' })
+    expect(within(today).getByText('40%')).toBeTruthy()
+  })
+
+  it('进度：越界值会被夹到 0–100', () => {
+    seedStorage(makeState('2025-06-01', [makeTask({ title: '写方案' })]))
+    render(<App />)
+
+    const slider = screen.getByLabelText('完成进度：写方案')
+    fireEvent.change(slider, { target: { value: '100' } })
+    expect(useStore.getState().tasks[0].progress).toBe(100)
+
+    // 直接调 action 传越界值
+    actions.setProgress(useStore.getState().tasks[0].id, 250)
+    expect(useStore.getState().tasks[0].progress).toBe(100)
+    actions.setProgress(useStore.getState().tasks[0].id, -20)
+    expect(useStore.getState().tasks[0].progress).toBe(0)
+  })
+
+  it('待追踪：已完成的任务可以标记追踪并单独记录追踪进度', () => {
+    const doneTask = makeTask({
+      title: '发布版本',
+      status: 'done',
+      completedAt: at(2025, 6, 1, 10, 30).toISOString(),
+      completedDate: '2025-06-01',
+    })
+    seedStorage(makeState('2025-06-01', [doneTask]))
+    render(<App />)
+
+    const donePanel = screen.getByRole('region', { name: '今日已完成' })
+    const trackBtn = within(donePanel).getByRole('button', { name: '标记为待追踪：发布版本' })
+    fireEvent.click(trackBtn)
+
+    expect(useStore.getState().tasks[0].tracking).toBe(true)
+    // 出现「待追踪」角标和独立的追踪进度滑块
+    expect(within(donePanel).getByText('待追踪')).toBeTruthy()
+    const trackSlider = within(donePanel).getByLabelText('追踪进度：发布版本') as HTMLInputElement
+    fireEvent.change(trackSlider, { target: { value: '60' } })
+
+    expect(useStore.getState().tasks[0].trackingProgress).toBe(60)
+    expect(within(donePanel).getByText('待追踪 60%')).toBeTruthy()
+    // 完成进度和追踪进度是两个独立字段
+    expect(useStore.getState().tasks[0].progress).toBe(0)
+
+    // 取消追踪会清掉追踪进度
+    fireEvent.click(within(donePanel).getByRole('button', { name: '取消追踪：发布版本' }))
+    expect(useStore.getState().tasks[0].tracking).toBe(false)
+    expect(useStore.getState().tasks[0].trackingProgress).toBe(0)
+  })
+
+  it('退回今日：已完成的任务可以一键退回今日待办', () => {
+    const doneTask = makeTask({
+      title: '写周报',
+      status: 'done',
+      completedAt: at(2025, 6, 1, 10, 0).toISOString(),
+      completedDate: '2025-06-01',
+    })
+    seedStorage(makeState('2025-06-01', [doneTask]))
+    render(<App />)
+
+    expect(titlesIn('今日已完成')).toEqual(['写周报'])
+    expect(titlesIn('今日待办')).toHaveLength(0)
+
+    const donePanel = screen.getByRole('region', { name: '今日已完成' })
+    fireEvent.click(within(donePanel).getByRole('button', { name: '退回今日待办：写周报' }))
+
+    // 回到今日待办，完成痕迹清空
+    expect(titlesIn('今日待办')).toEqual(['写周报'])
+    expect(titlesIn('今日已完成')).toHaveLength(0)
+    const task = useStore.getState().tasks[0]
+    expect(task.status).toBe('today')
+    expect(task.completedAt).toBeNull()
+    expect(task.completedDate).toBeNull()
+    expect(task.scheduledDate).toBe('2025-06-01')
+  })
+
+  it('退回今日：保留进度与追踪标记（只是重新打开，不是重置）', () => {
+    const doneTask = makeTask({
+      title: '跟进合同',
+      status: 'done',
+      progress: 80,
+      tracking: true,
+      trackingProgress: 30,
+      completedAt: at(2025, 6, 1, 10, 0).toISOString(),
+      completedDate: '2025-06-01',
+    })
+    seedStorage(makeState('2025-06-01', [doneTask]))
+    render(<App />)
+
+    const donePanel = screen.getByRole('region', { name: '今日已完成' })
+    fireEvent.click(within(donePanel).getByRole('button', { name: '退回今日待办：跟进合同' }))
+
+    const task = useStore.getState().tasks[0]
+    expect(task.status).toBe('today')
+    expect(task.progress).toBe(80)
+    expect(task.tracking).toBe(true)
+    expect(task.trackingProgress).toBe(30)
   })
 
   it('日历可以翻月，并能在翻走后回到今天', () => {

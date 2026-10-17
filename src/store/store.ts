@@ -147,6 +147,9 @@ function buildTask(input: NewTaskInput, tasks: Task[], now: Date, today: string)
     pinned: input.pinned ?? false,
     carryOverCount: 0,
     lastRolledAt: null,
+    progress: 0,
+    tracking: false,
+    trackingProgress: 0,
     order: nextOrder(tasks, toToday ? 'today' : 'pool', toToday ? today : null),
     parentId: null,
     recurringId: null,
@@ -310,6 +313,9 @@ export const actions = {
       pinned: false,
       carryOverCount: 0,
       lastRolledAt: null,
+      progress: 0,
+      tracking: false,
+      trackingProgress: 0,
       order,
       parentId,
       recurringId: null,
@@ -334,6 +340,75 @@ export const actions = {
       }),
     )
     return child.id
+  },
+
+  /** 设置完成进度 0–100（今日待办里拖动即可） */
+  setProgress(id: string, value: number): void {
+    const now = clock.now().toISOString()
+    useStore.setState(
+      produce((draft: StoreState) => {
+        const task = draft.tasks.find((t) => t.id === id)
+        if (!task || task.deletedAt) return
+        task.progress = Math.min(100, Math.max(0, Math.round(value)))
+        task.updatedAt = now
+        draft.updatedAt = now
+      }),
+    )
+  },
+
+  /**
+   * 切换「待追踪」标记。
+   * 用在已完成的任务上：事情做完了，但结果还要继续跟进。
+   */
+  toggleTracking(id: string): void {
+    const now = clock.now().toISOString()
+    useStore.setState(
+      produce((draft: StoreState) => {
+        const task = draft.tasks.find((t) => t.id === id)
+        if (!task || task.deletedAt) return
+        task.tracking = !task.tracking
+        if (!task.tracking) task.trackingProgress = 0
+        task.updatedAt = now
+        draft.updatedAt = now
+      }),
+    )
+  },
+
+  /** 设置追踪进度 0–100 */
+  setTrackingProgress(id: string, value: number): void {
+    const now = clock.now().toISOString()
+    useStore.setState(
+      produce((draft: StoreState) => {
+        const task = draft.tasks.find((t) => t.id === id)
+        if (!task || task.deletedAt) return
+        task.trackingProgress = Math.min(100, Math.max(0, Math.round(value)))
+        task.tracking = true
+        task.updatedAt = now
+        draft.updatedAt = now
+      }),
+    )
+  },
+
+  /**
+   * 把已完成的任务退回今日待办。
+   * 与「取消勾选」等价，但入口更明确——用户不必去猜取消勾选会发生什么。
+   */
+  reopenTask(id: string): void {
+    const now = clock.now()
+    useStore.setState(
+      produce((draft: StoreState) => {
+        const task = draft.tasks.find((t) => t.id === id)
+        if (!task || task.deletedAt || !task.completedAt) return
+        const today = logicalDateOf(now, draft.settings.dayStartHour)
+        task.completedAt = null
+        task.completedDate = null
+        task.scheduledDate = today
+        task.status = 'today'
+        task.order = nextOrder(draft.tasks, 'today', today)
+        task.updatedAt = now.toISOString()
+        draft.updatedAt = now.toISOString()
+      }),
+    )
   },
 
   /** 勾选 / 取消勾选（FR-05 / FR-07 / FR-13） */
@@ -766,6 +841,9 @@ export const actions = {
               pinned: false,
               carryOverCount: 0,
               lastRolledAt: null,
+              progress: 100,
+              tracking: false,
+              trackingProgress: 0,
               order: k + 1,
               parentId: null,
               recurringId: null,

@@ -95,6 +95,7 @@ export function TodayPanel({
                 index={index}
                 listLength={nodes.length}
                 onEdit={onEdit}
+                onProgressChange={actions.setProgress}
                 onToggle={actions.toggleComplete}
                 onMoveToToday={actions.moveToToday}
                 onMoveToPool={actions.moveToPool}

@@ -22,6 +22,10 @@ export interface TaskNodeProps {
   onMoveToPool: (id: string) => void
   onDelete: (id: string) => void
   onMove?: (id: string, toIndex: number) => void
+  onProgressChange?: (id: string, value: number) => void
+  onToggleTracking?: (id: string) => void
+  onTrackingProgressChange?: (id: string, value: number) => void
+  onReopen?: (id: string) => void
   /** 是否允许在这一行新增二级任务（已完成的归档区不允许） */
   allowSubtasks?: boolean
 }
@@ -45,6 +49,10 @@ export function TaskNode({
   onMoveToPool,
   onDelete,
   onMove,
+  onProgressChange,
+  onToggleTracking,
+  onTrackingProgressChange,
+  onReopen,
   allowSubtasks = true,
 }: TaskNodeProps): JSX.Element {
   const [adding, setAdding] = useState(false)
@@ -79,6 +87,10 @@ export function TaskNode({
         onMoveToPool={onMoveToPool}
         onDelete={onDelete}
         onMove={onMove}
+        onProgressChange={onProgressChange}
+        onToggleTracking={onToggleTracking}
+        onTrackingProgressChange={onTrackingProgressChange}
+        onReopen={onReopen}
         onAddSubtask={allowSubtasks ? () => setAdding((v) => !v) : undefined}
       />
 

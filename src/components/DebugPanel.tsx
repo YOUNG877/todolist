@@ -104,6 +104,19 @@ export function DebugPanel({ today }: { today: string }): JSX.Element {
               />
               <span className="field__hint">天，0 = 不限</span>
             </label>
+
+            <label className="field">
+              <span className="field__label">周末也计延期</span>
+              <input
+                type="checkbox"
+                checked={settings.countWeekends}
+                aria-label="周末也计入延期天数"
+                onChange={(e) => actions.setSettings({ countWeekends: e.target.checked })}
+              />
+              <span className="field__hint">
+                不勾：周六日算节假日，延到周末不增加延期天数
+              </span>
+            </label>
           </div>
 
           {snapshotDates.length === 0 ? (

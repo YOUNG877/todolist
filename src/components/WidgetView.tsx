@@ -107,6 +107,7 @@ export function WidgetView({ today, onEditTask }: WidgetViewProps): JSX.Element 
                     context="today"
                     allowSubtasks={false}
                     onEdit={onEditTask}
+                    onProgressChange={actions.setProgress}
                     onToggle={actions.toggleComplete}
                     onMoveToToday={actions.moveToToday}
                     onMoveToPool={actions.moveToPool}
