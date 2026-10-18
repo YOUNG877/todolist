@@ -23,7 +23,13 @@ export function TodayDonePanel({
     () =>
       sortManual(
         visible.filter(
-          (t) => !t.parentId && t.status === 'done' && !t.deletedAt && t.completedDate === today,
+          (t) =>
+            !t.parentId &&
+            t.status === 'done' &&
+            !t.deletedAt &&
+            t.completedDate === today &&
+            // 带追踪的单独放在「带追踪」列表里，两边不重复
+            !t.tracking,
         ),
       ),
     [visible, today],

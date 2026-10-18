@@ -26,6 +26,7 @@ export interface TaskNodeProps {
   onToggleTracking?: (id: string) => void
   onTrackingProgressChange?: (id: string, value: number) => void
   onReopen?: (id: string) => void
+  onCompleteAndTrack?: (id: string) => void
   onAddTrackingNote?: (id: string, text: string) => void
   onDeleteTrackingNote?: (id: string, noteId: string) => void
   /** 是否允许在这一行新增二级任务（已完成的归档区不允许） */
@@ -55,6 +56,7 @@ export function TaskNode({
   onToggleTracking,
   onTrackingProgressChange,
   onReopen,
+  onCompleteAndTrack,
   onAddTrackingNote,
   onDeleteTrackingNote,
   allowSubtasks = true,
@@ -95,6 +97,7 @@ export function TaskNode({
         onToggleTracking={onToggleTracking}
         onTrackingProgressChange={onTrackingProgressChange}
         onReopen={onReopen}
+        onCompleteAndTrack={onCompleteAndTrack}
         onAddTrackingNote={onAddTrackingNote}
         onDeleteTrackingNote={onDeleteTrackingNote}
         onAddSubtask={allowSubtasks ? () => setAdding((v) => !v) : undefined}

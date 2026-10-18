@@ -39,6 +39,8 @@ export interface TaskItemProps {
   onTrackingProgressChange?: (id: string, value: number) => void
   /** 已完成任务：退回今日待办 */
   onReopen?: (id: string) => void
+  /** 今日待办里：标记完成并移交到「带追踪」列表 */
+  onCompleteAndTrack?: (id: string) => void
   /** 已完成任务：追加追踪备注 */
   onAddTrackingNote?: (id: string, text: string) => void
   /** 已完成任务：删除追踪备注 */
@@ -83,6 +85,7 @@ export function TaskItem({
   onToggleTracking,
   onTrackingProgressChange,
   onReopen,
+  onCompleteAndTrack,
   onAddTrackingNote,
   onDeleteTrackingNote,
   onMove,
@@ -190,7 +193,12 @@ export function TaskItem({
           ))}
 
           {done && task.completedAt && (
-            <span className="time">{formatLocalTime(task.completedAt)} 完成</span>
+            <span className="time">
+              {task.completedDate && task.completedDate !== today
+                ? `${task.completedDate.slice(5)} ${formatLocalTime(task.completedAt)}`
+                : formatLocalTime(task.completedAt)}{' '}
+              完成
+            </span>
           )}
         </div>
 
@@ -292,6 +300,19 @@ export function TaskItem({
             onClick={() => onToggleTracking(task.id)}
           >
             {task.tracking ? '追踪中' : '追踪'}
+          </button>
+        )}
+
+        {/* 今日待办：做完但还要跟结果 → 移交到「带追踪」，与勾选框（去已完成）并列 */}
+        {!isSub && !done && context === 'today' && onCompleteAndTrack && (
+          <button
+            type="button"
+            className="btn btn--xs btn--track-soft"
+            aria-label={`移交追踪：${task.title}`}
+            title="标记完成，并移交到「带追踪」列表继续跟进结果"
+            onClick={() => onCompleteAndTrack(task.id)}
+          >
+            → 追踪
           </button>
         )}
 

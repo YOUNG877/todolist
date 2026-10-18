@@ -610,6 +610,31 @@ code {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* 右栏：带追踪（上，进行中）+ 今日已完成（下，归档）叠放。
+   不做成第 4 列，是为了不让中间的今日待办被挤到 350px 左右。 */
+.board__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.panel--tracking {
+  /* 追踪条目比归档条目更"活"，左边缘用追踪色区分 */
+  border-top: 2px solid var(--c-track);
+}
+
+.btn--track-soft {
+  background: var(--c-track-soft);
+  color: var(--c-track);
+  border-color: transparent;
+}
+
+.btn--track-soft:hover {
+  background: var(--c-track);
+  color: #fff;
+}
+
 .panel {
   display: flex;
   flex-direction: column;
@@ -2014,8 +2039,15 @@ code {
     grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
   }
 
-  .panel--done {
+  /* 右栏整条落到下一行，内部把两个面板并排 */
+  .board__side {
     grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .board__side > .panel {
+    flex: 1 1 300px;
   }
 }
 
@@ -2024,6 +2056,15 @@ code {
     grid-template-columns: minmax(0, 1fr);
     padding: var(--sp-4);
     gap: var(--sp-4);
+  }
+
+  .board__side {
+    grid-column: auto;
+    flex-direction: column;
+  }
+
+  .board__side > .panel {
+    flex: 1 1 auto;
   }
 
   .panel--done,

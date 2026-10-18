@@ -11,6 +11,7 @@ import { TagManagerDialog } from './components/TagManagerDialog'
 import { TaskEditorModal } from './components/TaskEditorModal'
 import { TodayDonePanel } from './components/TodayDonePanel'
 import { TodayPanel } from './components/TodayPanel'
+import { TrackingPanel } from './components/TrackingPanel'
 import { TopBar } from './components/TopBar'
 import { WidgetView } from './components/WidgetView'
 
@@ -148,7 +149,12 @@ export default function App(): JSX.Element {
         <main className="layout">
           <BacklogPanel today={today} onEdit={openEditor} />
           <TodayPanel today={today} onEdit={openEditor} />
-          <TodayDonePanel today={today} onEdit={openEditor} />
+          {/* 右栏叠放：带追踪在上（进行中），今日已完成在下（归档）。
+              不并成第 4 列，是因为那样会把中间的今日待办挤到 350px 左右。 */}
+          <div className="board__side">
+            <TrackingPanel today={today} onEdit={openEditor} />
+            <TodayDonePanel today={today} onEdit={openEditor} />
+          </div>
         </main>
       )}
 

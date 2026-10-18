@@ -376,6 +376,50 @@ export const actions = {
     )
   },
 
+  /**
+   * 标记完成 **并** 移交到「带追踪」列表。
+   *
+   * 与直接勾选完成的区别只在于顺带打上 tracking 标记——两种去向由用户明确选择：
+   * 勾选框 → 今日已完成；这个动作 → 带追踪。
+   * 复用 toggleComplete 是为了拿到它的子任务级联与父任务自动完成逻辑。
+   */
+  completeAndTrack(id: string): void {
+    const task = useStore.getState().tasks.find((t) => t.id === id)
+    if (!task || task.deletedAt) return
+
+    // 还没完成才走完成逻辑（toggleComplete 是开关，已完成时调用会把它取消）
+    if (!task.completedAt) actions.toggleComplete(id)
+
+    const now = clock.now().toISOString()
+    useStore.setState(
+      produce((draft: StoreState) => {
+        const t = draft.tasks.find((x) => x.id === id)
+        if (!t || t.deletedAt) return
+        t.tracking = true
+        t.updatedAt = now
+        draft.updatedAt = now
+      }),
+    )
+  },
+
+  /**
+   * 结束追踪：清掉待追踪标记，任务作为普通已完成记录留下。
+   * 与 toggleTracking 的区别是幂等——明确「我要结束」，不会反而打开。
+   */
+  stopTracking(id: string): void {
+    const now = clock.now().toISOString()
+    useStore.setState(
+      produce((draft: StoreState) => {
+        const task = draft.tasks.find((t) => t.id === id)
+        if (!task || task.deletedAt) return
+        task.tracking = false
+        task.trackingProgress = 0
+        task.updatedAt = now
+        draft.updatedAt = now
+      }),
+    )
+  },
+
   /** 设置追踪进度 0–100 */
   setTrackingProgress(id: string, value: number): void {
     const now = clock.now().toISOString()
