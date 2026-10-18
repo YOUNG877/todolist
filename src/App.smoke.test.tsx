@@ -76,8 +76,14 @@ function titlesIn(regionName: string): string[] {
   return within(region)
     .queryAllByRole('checkbox')
     .map((el) => el.getAttribute('aria-label') ?? '')
-    .filter((label) => label.startsWith('完成任务：') || label.startsWith('取消完成：'))
-    .map((label) => label.replace(/^(?:取消完成|完成任务)：/, ''))
+    // 「完成：X」是待追踪列表的勾选框语义（finishMode），同样算作任务行
+    .filter(
+      (label) =>
+        label.startsWith('完成任务：') ||
+        label.startsWith('取消完成：') ||
+        label.startsWith('完成：'),
+    )
+    .map((label) => label.replace(/^(?:取消完成|完成任务|完成)：/, ''))
 }
 
 /** 切到「回顾」页 */
@@ -654,7 +660,7 @@ describe('App 真实渲染（jsdom）', () => {
     expect(useStore.getState().tasks[0].progress).toBe(0)
   })
 
-  it('待追踪：标记后任务从「今日已完成」移到「带追踪」，并单独记录追踪进度', () => {
+  it('待追踪：标记后任务从「今日已完成」移到「待追踪」，并单独记录追踪进度', () => {
     const doneTask = makeTask({
       title: '发布版本',
       status: 'done',
@@ -666,18 +672,19 @@ describe('App 真实渲染（jsdom）', () => {
 
     // 一开始在「今日已完成」
     expect(titlesIn('今日已完成')).toEqual(['发布版本'])
-    expect(titlesIn('带追踪')).toEqual([])
+    expect(titlesIn('待追踪')).toEqual([])
 
     const donePanel = screen.getByRole('region', { name: '今日已完成' })
     fireEvent.click(within(donePanel).getByRole('button', { name: '标记为待追踪：发布版本' }))
 
     expect(useStore.getState().tasks[0].tracking).toBe(true)
-    // 两个列表不重复：已完成里没有了，跑到带追踪里
+    // 两个列表不重复：已完成里没有了，跑到待追踪里
     expect(titlesIn('今日已完成')).toEqual([])
-    expect(titlesIn('带追踪')).toEqual(['发布版本'])
+    expect(titlesIn('待追踪')).toEqual(['发布版本'])
 
-    const trackPanel = screen.getByRole('region', { name: '带追踪' })
-    expect(within(trackPanel).getByText('待追踪')).toBeTruthy()
+    const trackPanel = screen.getByRole('region', { name: '待追踪' })
+    // 面板标题也叫「待追踪」，所以这里限定到条目上的角标
+    expect(within(trackPanel).getByText('待追踪', { selector: '.chip--track' })).toBeTruthy()
     const trackSlider = within(trackPanel).getByLabelText(
       '追踪进度：发布版本',
     ) as HTMLInputElement
@@ -688,15 +695,15 @@ describe('App 真实渲染（jsdom）', () => {
     // 完成进度和追踪进度是两个独立字段
     expect(useStore.getState().tasks[0].progress).toBe(0)
 
-    // 结束追踪：清掉追踪进度，任务回到「今日已完成」
-    fireEvent.click(within(trackPanel).getByRole('button', { name: '取消追踪：发布版本' }))
+    // 点勾选框「完成」= 结束追踪，任务回到「今日已完成」
+    fireEvent.click(within(trackPanel).getByRole('checkbox', { name: '完成：发布版本' }))
     expect(useStore.getState().tasks[0].tracking).toBe(false)
     expect(useStore.getState().tasks[0].trackingProgress).toBe(0)
-    expect(titlesIn('带追踪')).toEqual([])
+    expect(titlesIn('待追踪')).toEqual([])
     expect(titlesIn('今日已完成')).toEqual(['发布版本'])
   })
 
-  it('今日待办：可以把任务移交到「带追踪」，而不是已完成', () => {
+  it('今日待办：可以把任务移交到「待追踪」，而不是已完成', () => {
     seedStorage(makeState('2025-06-01', [makeTask({ title: '提交申请' })]))
     render(<App />)
 
@@ -705,8 +712,8 @@ describe('App 真实渲染（jsdom）', () => {
 
     // 已从今日待办移走
     expect(titlesIn('今日待办')).toEqual([])
-    // 落到带追踪，而不是今日已完成
-    expect(titlesIn('带追踪')).toEqual(['提交申请'])
+    // 落到待追踪，而不是今日已完成
+    expect(titlesIn('待追踪')).toEqual(['提交申请'])
     expect(titlesIn('今日已完成')).toEqual([])
 
     const task = useStore.getState().tasks[0]
@@ -715,7 +722,7 @@ describe('App 真实渲染（jsdom）', () => {
     expect(task.completedDate).toBe('2025-06-01')
   })
 
-  it('今日待办：勾选框走「已完成」，移交追踪走「带追踪」，两条路互不干扰', () => {
+  it('今日待办：勾选框走「已完成」，移交追踪走「待追踪」，两条路互不干扰', () => {
     seedStorage(
       makeState('2025-06-01', [makeTask({ title: '普通任务' }), makeTask({ title: '要跟进的' })]),
     )
@@ -726,11 +733,66 @@ describe('App 真实渲染（jsdom）', () => {
     fireEvent.click(within(today).getByRole('button', { name: '移交追踪：要跟进的' }))
 
     expect(titlesIn('今日已完成')).toEqual(['普通任务'])
-    expect(titlesIn('带追踪')).toEqual(['要跟进的'])
+    expect(titlesIn('待追踪')).toEqual(['要跟进的'])
     expect(titlesIn('今日待办')).toEqual([])
   })
 
-  it('带追踪：跨天的追踪任务依然留着（不会因为不是今天完成就消失）', () => {
+  it('待追踪：点「完成」收尾，同一天完成的任务落进「今日已完成」', () => {
+    const doneTask = makeTask({
+      title: '等审批',
+      status: 'done',
+      tracking: true,
+      completedAt: at(2025, 6, 1, 10, 0).toISOString(),
+      completedDate: '2025-06-01',
+    })
+    seedStorage(makeState('2025-06-01', [doneTask]))
+    render(<App />)
+
+    expect(titlesIn('待追踪')).toEqual(['等审批'])
+    expect(titlesIn('今日已完成')).toEqual([])
+
+    fireEvent.click(
+      within(screen.getByRole('region', { name: '待追踪' })).getByRole('checkbox', {
+        name: '完成：等审批',
+      }),
+    )
+
+    // 完成收尾后进「今日已完成」，而不是退回今日待办
+    expect(titlesIn('待追踪')).toEqual([])
+    expect(titlesIn('今日已完成')).toEqual(['等审批'])
+    expect(titlesIn('今日待办')).toEqual([])
+
+    const task = useStore.getState().tasks[0]
+    expect(task.status).toBe('done')
+    expect(task.tracking).toBe(false)
+    expect(task.completedDate).toBe('2025-06-01')
+  })
+
+  it('待追踪：跨天完成的任务点「完成」后回到它完成那天的记录（不进今日已完成）', () => {
+    const oldTracked = makeTask({
+      title: '上周提交的报销',
+      status: 'done',
+      tracking: true,
+      completedAt: at(2025, 5, 25, 10, 0).toISOString(),
+      completedDate: '2025-05-25',
+    })
+    seedStorage(makeState('2025-06-01', [oldTracked]))
+    render(<App />)
+
+    fireEvent.click(
+      within(screen.getByRole('region', { name: '待追踪' })).getByRole('checkbox', {
+        name: '完成：上周提交的报销',
+      }),
+    )
+
+    expect(titlesIn('待追踪')).toEqual([])
+    // 「今日已完成」只装今天完成的，这条属于 5-25，留在回顾里
+    expect(titlesIn('今日已完成')).toEqual([])
+    // 完成日期不被改写
+    expect(useStore.getState().tasks[0].completedDate).toBe('2025-05-25')
+  })
+
+  it('待追踪：跨天的追踪任务依然留着（不会因为不是今天完成就消失）', () => {
     const oldTracked = makeTask({
       title: '上周提交的报销',
       status: 'done',
@@ -742,11 +804,11 @@ describe('App 真实渲染（jsdom）', () => {
     seedStorage(makeState('2025-06-01', [oldTracked]))
     render(<App />)
 
-    // 完成日不是今天，但仍在追踪 → 必须出现在带追踪里
-    expect(titlesIn('带追踪')).toEqual(['上周提交的报销'])
+    // 完成日不是今天，但仍在追踪 → 必须出现在待追踪里
+    expect(titlesIn('待追踪')).toEqual(['上周提交的报销'])
     expect(titlesIn('今日已完成')).toEqual([])
 
-    const panel = screen.getByRole('region', { name: '带追踪' })
+    const panel = screen.getByRole('region', { name: '待追踪' })
     // 跨天完成的任务，完成时间带上月日，避免误读成今天的 10:00
     expect(within(panel).getByText(/05-25 10:00/)).toBeTruthy()
   })
@@ -790,8 +852,8 @@ describe('App 真实渲染（jsdom）', () => {
     seedStorage(makeState('2025-06-01', [doneTask]))
     render(<App />)
 
-    // 带追踪的任务在「带追踪」列表里，退回到今日待办也在那里操作
-    const trackPanel = screen.getByRole('region', { name: '带追踪' })
+    // 待追踪的任务在「待追踪」列表里，退回到今日待办也在那里操作
+    const trackPanel = screen.getByRole('region', { name: '待追踪' })
     fireEvent.click(within(trackPanel).getByRole('button', { name: '退回今日待办：跟进合同' }))
 
     const task = useStore.getState().tasks[0]
@@ -811,13 +873,13 @@ describe('App 真实渲染（jsdom）', () => {
     seedStorage(makeState('2025-06-01', [doneTask]))
     render(<App />)
 
-    // 先开启追踪：任务会移到「带追踪」，之后都在那里操作
+    // 先开启追踪：任务会移到「待追踪」，之后都在那里操作
     fireEvent.click(
       within(screen.getByRole('region', { name: '今日已完成' })).getByRole('button', {
         name: '标记为待追踪：等审批',
       }),
     )
-    const done = screen.getByRole('region', { name: '带追踪' })
+    const done = screen.getByRole('region', { name: '待追踪' })
 
     const addNote = (progress: string, text: string): void => {
       fireEvent.change(within(done).getByLabelText('追踪进度：等审批'), {
@@ -860,7 +922,7 @@ describe('App 真实渲染（jsdom）', () => {
     seedStorage(makeState('2025-06-01', [doneTask]))
     render(<App />)
 
-    const done = screen.getByRole('region', { name: '带追踪' })
+    const done = screen.getByRole('region', { name: '待追踪' })
     const input = within(done).getByLabelText('添加追踪备注：等审批')
 
     // 只有空白 → 不添加
@@ -891,8 +953,9 @@ describe('App 真实渲染（jsdom）', () => {
     seedStorage(makeState('2025-06-01', [doneTask]))
     render(<App />)
 
-    const done = screen.getByRole('region', { name: '带追踪' })
-    fireEvent.click(within(done).getByRole('button', { name: '取消追踪：等审批' }))
+    const done = screen.getByRole('region', { name: '待追踪' })
+    // 待追踪列表里的勾选框语义是「完成」，点它结束追踪
+    fireEvent.click(within(done).getByRole('checkbox', { name: '完成：等审批' }))
 
     const task = useStore.getState().tasks[0]
     expect(task.tracking).toBe(false)

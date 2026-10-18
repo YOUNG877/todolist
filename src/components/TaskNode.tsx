@@ -27,10 +27,18 @@ export interface TaskNodeProps {
   onTrackingProgressChange?: (id: string, value: number) => void
   onReopen?: (id: string) => void
   onCompleteAndTrack?: (id: string) => void
+  /** 勾选框语义改成「完成」（待追踪列表用） */
+  finishMode?: boolean
   onAddTrackingNote?: (id: string, text: string) => void
   onDeleteTrackingNote?: (id: string, noteId: string) => void
   /** 是否允许在这一行新增二级任务（已完成的归档区不允许） */
   allowSubtasks?: boolean
+  /**
+   * 是否渲染子任务。
+   * 待追踪列表传 false：子任务没有追踪标记，点它们的勾选框没有意义，
+   * 留着只会让人点了发现「没反应」。父任务上的「子任务 2/3」角标已足够表达进度。
+   */
+  showChildren?: boolean
 }
 
 /**
@@ -57,9 +65,11 @@ export function TaskNode({
   onTrackingProgressChange,
   onReopen,
   onCompleteAndTrack,
+  finishMode = false,
   onAddTrackingNote,
   onDeleteTrackingNote,
   allowSubtasks = true,
+  showChildren = true,
 }: TaskNodeProps): JSX.Element {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
@@ -98,6 +108,7 @@ export function TaskNode({
         onTrackingProgressChange={onTrackingProgressChange}
         onReopen={onReopen}
         onCompleteAndTrack={onCompleteAndTrack}
+        finishMode={finishMode}
         onAddTrackingNote={onAddTrackingNote}
         onDeleteTrackingNote={onDeleteTrackingNote}
         onAddSubtask={allowSubtasks ? () => setAdding((v) => !v) : undefined}
@@ -137,7 +148,7 @@ export function TaskNode({
         </form>
       )}
 
-      {node.children.length > 0 && (
+      {showChildren && node.children.length > 0 && (
         <ul className="subtask-list">
           {node.children.map((child) => (
             <li className="task-node task-node--sub" key={child.id}>

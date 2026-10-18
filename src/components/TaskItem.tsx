@@ -39,8 +39,14 @@ export interface TaskItemProps {
   onTrackingProgressChange?: (id: string, value: number) => void
   /** 已完成任务：退回今日待办 */
   onReopen?: (id: string) => void
-  /** 今日待办里：标记完成并移交到「带追踪」列表 */
+  /** 今日待办里：标记完成并移交到「待追踪」列表 */
   onCompleteAndTrack?: (id: string) => void
+  /**
+   * 勾选框的语义改成「完成」而不是「取消完成」。
+   * 待追踪列表用它：那里的任务已经完成了，点勾选框的意思是「结束追踪、收尾」，
+   * 而不是把任务退回今日待办。
+   */
+  finishMode?: boolean
   /** 已完成任务：追加追踪备注 */
   onAddTrackingNote?: (id: string, text: string) => void
   /** 已完成任务：删除追踪备注 */
@@ -86,6 +92,7 @@ export function TaskItem({
   onTrackingProgressChange,
   onReopen,
   onCompleteAndTrack,
+  finishMode = false,
   onAddTrackingNote,
   onDeleteTrackingNote,
   onMove,
@@ -98,14 +105,19 @@ export function TaskItem({
   const showProgress = !isSub && context === 'today' && !!onProgressChange
   const showTracking = !isSub && task.tracking && done
 
+  const checkLabel = finishMode
+    ? `完成：${task.title}`
+    : `${done ? '取消完成' : '完成任务'}：${task.title}`
+  const checkTitle = finishMode ? '完成（结束追踪）' : done ? '取消完成' : '标记完成'
+
   const checkButton = (
     <button
       type="button"
       role="checkbox"
       aria-checked={done}
-      aria-label={`${done ? '取消完成' : '完成任务'}：${task.title}`}
-      title={done ? '取消完成' : '标记完成'}
-      className="task__check"
+      aria-label={checkLabel}
+      title={checkTitle}
+      className={`task__check${finishMode ? ' task__check--finish' : ''}`}
       onClick={() => onToggle(task.id)}
     >
       <CheckIcon />
@@ -303,13 +315,13 @@ export function TaskItem({
           </button>
         )}
 
-        {/* 今日待办：做完但还要跟结果 → 移交到「带追踪」，与勾选框（去已完成）并列 */}
+        {/* 今日待办：做完但还要跟结果 → 移交到「待追踪」，与勾选框（去已完成）并列 */}
         {!isSub && !done && context === 'today' && onCompleteAndTrack && (
           <button
             type="button"
             className="btn btn--xs btn--track-soft"
             aria-label={`移交追踪：${task.title}`}
-            title="标记完成，并移交到「带追踪」列表继续跟进结果"
+            title="标记完成，并移交到「待追踪」列表继续跟进结果"
             onClick={() => onCompleteAndTrack(task.id)}
           >
             → 追踪

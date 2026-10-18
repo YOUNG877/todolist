@@ -610,7 +610,7 @@ code {
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* 右栏：带追踪（上，进行中）+ 今日已完成（下，归档）叠放。
+/* 右栏：待追踪（上，进行中）+ 今日已完成（下，归档）叠放。
    不做成第 4 列，是为了不让中间的今日待办被挤到 350px 左右。 */
 .board__side {
   display: flex;
@@ -1673,6 +1673,18 @@ code {
 /* 待追踪的已完成任务：左侧加一道紫色标记，扫一眼就能分辨 */
 .task--tracking {
   border-left: 3px solid var(--c-track);
+}
+
+/* 待追踪列表里的勾选框语义是「完成收尾」，与「取消完成」相反，
+   所以用追踪色区分，避免同一个绿色圆圈在两处表示相反动作 */
+.task__check.task__check--finish {
+  border-color: var(--c-track);
+  background: var(--c-track);
+  color: #fff;
+}
+
+.task__check.task__check--finish:hover {
+  filter: brightness(1.08);
 }
 
 /* ---------- 追踪备注 ---------- */

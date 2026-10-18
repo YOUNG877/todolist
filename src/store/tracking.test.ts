@@ -1,7 +1,7 @@
 /**
  * tracking.test.ts —— 追踪相关字段的持久化契约
  *
- * 「带追踪」列表是独立于「今日已完成」的，所以 tracking / trackingProgress /
+ * 「待追踪」列表是独立于「今日已完成」的，所以 tracking / trackingProgress /
  * trackingNotes 必须能完整地存盘再读回来；否则刷新一次任务就从追踪列表里消失了。
  */
 

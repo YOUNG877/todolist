@@ -28,7 +28,7 @@ export function TodayDonePanel({
             t.status === 'done' &&
             !t.deletedAt &&
             t.completedDate === today &&
-            // 带追踪的单独放在「带追踪」列表里，两边不重复
+            // 待追踪的单独放在「待追踪」列表里，两边不重复
             !t.tracking,
         ),
       ),

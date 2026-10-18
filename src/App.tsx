@@ -149,7 +149,7 @@ export default function App(): JSX.Element {
         <main className="layout">
           <BacklogPanel today={today} onEdit={openEditor} />
           <TodayPanel today={today} onEdit={openEditor} />
-          {/* 右栏叠放：带追踪在上（进行中），今日已完成在下（归档）。
+          {/* 右栏叠放：待追踪在上（进行中），今日已完成在下（归档）。
               不并成第 4 列，是因为那样会把中间的今日待办挤到 350px 左右。 */}
           <div className="board__side">
             <TrackingPanel today={today} onEdit={openEditor} />

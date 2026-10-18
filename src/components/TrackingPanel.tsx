@@ -4,11 +4,15 @@ import { actions, useStore } from '@/store/store'
 import { TaskNode } from './TaskNode'
 
 /**
- * 带追踪（用户要求：与「今日已完成」分开，单独成列表）。
+ * 待追踪（用户要求：与「今日已完成」分开，单独成列表）。
  *
  * 放的是「事情做完了、但结果还要继续跟」的任务。这类任务跨天存在是常态，
  * 所以**不按完成日期过滤**——只要还在追踪就一直留在这里，
- * 直到手动结束追踪（否则隔天就从界面上消失，追踪就失去意义了）。
+ * 直到点「完成」结束追踪（否则隔天就从界面上消失，追踪就失去意义了）。
+ *
+ * 这里的勾选框语义是「完成」而不是「取消完成」（finishMode）：
+ * 任务早就完成了，点它表示收尾、结束追踪，之后回到「今日已完成」
+ * （或按原完成日期回到「回顾」里的那一天）。
  */
 export function TrackingPanel({
   today,
@@ -32,11 +36,11 @@ export function TrackingPanel({
   const activeCount = tracked.filter((t) => t.trackingProgress < 100).length
 
   return (
-    <section className="panel panel--tracking" aria-label="带追踪">
+    <section className="panel panel--tracking" aria-label="待追踪">
       <div className="panel__head">
         <div>
           <h2 className="panel__title">
-            带追踪 <span className="panel__count">{tracked.length}</span>
+            待追踪 <span className="panel__count">{tracked.length}</span>
           </h2>
           <p className="panel__sub">
             {tracked.length > 0
@@ -60,12 +64,14 @@ export function TrackingPanel({
                 today={today}
                 context="done"
                 allowSubtasks={false}
+                showChildren={false}
+                finishMode
                 onEdit={onEdit}
-                onToggle={actions.toggleComplete}
+                /* 勾选框 = 完成收尾（不是取消完成，那样会把任务退回今日待办） */
+                onToggle={actions.stopTracking}
                 onMoveToToday={actions.moveToToday}
                 onMoveToPool={actions.moveToPool}
                 onDelete={actions.deleteTask}
-                onToggleTracking={actions.stopTracking}
                 onTrackingProgressChange={actions.setTrackingProgress}
                 onReopen={actions.reopenTask}
                 onAddTrackingNote={actions.addTrackingNote}
