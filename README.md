@@ -23,10 +23,11 @@
 | M9 | **托盘与桌面悬浮小窗**、任务编辑弹窗（优先级/标签/备注）、标签管理与筛选、待办池全选 | ✅ 完成 |
 | M10 | 恢复「按截止日期」排序（编辑弹窗能设截止日期了）、悬浮小窗底部快速加任务 | ✅ 完成 |
 | M11 | 任务进度 0–100%、已完成任务「待追踪」与追踪进度、已完成「退回今日」、**周末不计延期**、用户操作手册 | ✅ 完成 |
+| M11.1 | 修复「换了新版本后双击没反应」：单实例锁命中时改为弹窗说明，不再静默退出 | ✅ 完成 |
 | M12 | 拖拽排序、行内语法（`!高 #标签 @日期`）、Toast 撤销、自动更新、PWA | ⬜ 未开始 |
 
 **已验证**：`pnpm typecheck` 无错误 · `pnpm test` **99/99 通过** · `pnpm build` 成功 ·
-1560px / 390px 视口下均无横向溢出 · 安装包 `release/TodoList-0.4.0-setup.exe`。
+1560px / 390px 视口下均无横向溢出 · 安装包 `release/TodoList-0.4.1-setup.exe`。
 
 测试构成：
 
@@ -59,7 +60,7 @@ pnpm app:pack      # 生成 Windows 安装包到 release/
 ### 桌面应用与安装包
 
 ```bash
-pnpm app:pack      # → release/TodoList-0.4.0-setup.exe（安装包）+ -portable.zip（绿色版）
+pnpm app:pack      # → release/TodoList-0.4.1-setup.exe（安装包）+ -portable.zip（绿色版）
 pnpm app           # 不打包，直接跑桌面应用，便于调试主进程
 pnpm app:sign      # 生成自签名代码签名证书（首次一次性）
 pnpm app:pack:signed   # 用该证书签名打包（需证书密码）
@@ -123,7 +124,7 @@ certutil -user -addstore TrustedPublisher .certs\todolist-codesign.cer
 ```
 
 做完第 3 步，`release/signed/` 里的安装包就不会再被拦。
-验证签名状态：`Get-AuthenticodeSignature release\signed\TodoList-0.4.0-setup.exe`
+验证签名状态：`Get-AuthenticodeSignature release\signed\TodoList-0.4.1-setup.exe`
 —— 导入证书前是 `UnknownError`（签名存在但根证书不受信任），导入后应是 `Valid`。
 
 注意事项：
@@ -395,6 +396,12 @@ settings.countWeekends = true 可以切回自然日口径（时间调试面板�
 - 小窗的按钮通过 `preload.cjs` 里 `contextBridge` 暴露的三个方法走 IPC，
   没有打开 `nodeIntegration`。
 - `window-all-closed` 故意留空：关掉所有窗口也不退出，只有托盘菜单的「退出」才真正结束进程。
+- **单实例锁与「换版本后双击没反应」**：正因为关窗口不退出，旧版可能一直在托盘里活着。
+  这时双击新版 exe 会拿不到单实例锁。早期实现直接 `app.quit()`，表现是**双击毫无反应**，
+  用户根本无法自查。现在改成：拿不到锁时弹窗说明「已经在运行」并提示去托盘退出；
+  同时用 `requestSingleInstanceLock({ version })` 把版本号传给已运行的实例，
+  版本不一致时它会再提示「你正在运行 vX，但刚才启动的是 vY」。
+  （`additionalData` 只有 v0.4.1+ 的实例才会传，所以版本差异提示只在新版本之间生效。）
 
 ---
 

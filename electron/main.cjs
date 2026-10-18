@@ -295,11 +295,46 @@ function createTray() {
 /* -------------------------------------------------------------------------- */
 
 // 单实例：重复启动时聚焦已有窗口，而不是开第二个（否则会有两份 localStorage 视图）
-if (!app.requestSingleInstanceLock()) {
-  app.quit()
+//
+// 但这里有个坑必须处理好：本应用「点关闭」只是隐藏到托盘，程序仍在运行。
+// 用户想换用新版时双击新的 exe，会拿不到锁——如果就这么静默退出，
+// 表现就是「双击了完全没反应」。所以拿不到锁时要明确告诉用户发生了什么。
+const gotSingleInstanceLock = app.requestSingleInstanceLock({ version: app.getVersion() })
+
+if (!gotSingleInstanceLock) {
+  app.whenReady().then(async () => {
+    await dialog.showMessageBox({
+      type: 'info',
+      title: '今日待办已经在运行',
+      message: '程序已经在运行，所以这次没有启动新窗口。',
+      detail:
+        '同一时间只允许运行一个实例。\n\n' +
+        '如果看不到窗口，它很可能被收进了系统托盘：\n' +
+        '在右下角任务栏的小箭头 ^ 里找到「今日待办」图标，双击即可重新打开。\n\n' +
+        '要换用新版本，请先在托盘图标上右键 → 退出，然后再启动新版本。',
+      buttons: ['知道了'],
+      noLink: true,
+    })
+    app.quit()
+  })
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, _argv, _cwd, additionalData) => {
     showMain()
+    // 另一个版本的 exe 试图启动：把版本差异说明白，否则用户会以为是新版本坏了
+    const otherVersion = additionalData && additionalData.version
+    if (otherVersion && otherVersion !== app.getVersion()) {
+      dialog.showMessageBox({
+        type: 'info',
+        title: '已有一个版本在运行',
+        message: `你正在运行 v${app.getVersion()}，但刚才启动的是 v${otherVersion}。`,
+        detail:
+          '同一时间只允许运行一个实例，所以新版本没有启动。\n\n' +
+          '要使用新版本：在托盘图标上右键 → 退出，然后再双击新版本的 exe。\n' +
+          '（数据不会丢：两个版本用的是同一份待办数据。）',
+        buttons: ['知道了'],
+        noLink: true,
+      })
+    }
   })
 
   app.whenReady().then(() => {
