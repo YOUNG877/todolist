@@ -55,11 +55,23 @@ export interface Task {
   tracking: boolean
   /** 追踪进度 0–100 */
   trackingProgress: number
+  /** 追踪备注，可多条，按时间先后追加 */
+  trackingNotes: TrackingNote[]
 
   /** 栏内排序权重（浮点，取中值插入） */
   order: number
   parentId: string | null
   recurringId: string | null
+}
+
+/** 追踪备注：做完了但还要跟结果时，一条条记录进展 */
+export interface TrackingNote {
+  id: string
+  text: string
+  /** 写这条备注的时刻（ISO） */
+  createdAt: string
+  /** 写这条备注时的追踪进度，便于回看「当时走到哪一步」 */
+  progress: number
 }
 
 /** 某一天结束时的快照，用于历史回看与统计（FR-15 / FR-16） */

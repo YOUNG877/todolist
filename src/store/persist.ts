@@ -19,6 +19,7 @@ import {
   type Settings,
   type Task,
   type TaskStatus,
+  type TrackingNote,
   type UiState,
 } from './types'
 
@@ -67,6 +68,25 @@ function asStringArray(value: unknown): string[] {
 const TASK_STATUSES: TaskStatus[] = ['pool', 'today', 'done', 'trash']
 const PRIORITIES: Priority[] = ['none', 'low', 'medium', 'high']
 
+function normalizeTrackingNotes(raw: unknown): TrackingNote[] {
+  if (!Array.isArray(raw)) return []
+  const notes: TrackingNote[] = []
+  for (const item of raw) {
+    const n = asRecord(item)
+    if (!n) continue
+    const text = asString(n.text).trim()
+    if (!text) continue
+    notes.push({
+      id: asString(n.id) || createId(),
+      text,
+      createdAt: asString(n.createdAt, clock.now().toISOString()),
+      progress: clampPercent(n.progress),
+    })
+  }
+  // 上限 200 条：追踪记录可能长期累积，别让它无限长
+  return notes.slice(-200)
+}
+
 /** 百分比字段统一夹到 0–100 的整数 */
 function clampPercent(value: unknown): number {
   return Math.min(100, Math.max(0, Math.round(asNumber(value))))
@@ -110,6 +130,7 @@ export function normalizeTask(raw: unknown, index: number): Task | null {
     progress: clampPercent(r.progress),
     tracking: asBoolean(r.tracking),
     trackingProgress: clampPercent(r.trackingProgress),
+    trackingNotes: normalizeTrackingNotes(r.trackingNotes),
     order: asNumber(r.order, index),
     parentId: asStringOrNull(r.parentId),
     recurringId: asStringOrNull(r.recurringId),

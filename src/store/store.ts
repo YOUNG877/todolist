@@ -150,6 +150,7 @@ function buildTask(input: NewTaskInput, tasks: Task[], now: Date, today: string)
     progress: 0,
     tracking: false,
     trackingProgress: 0,
+    trackingNotes: [],
     order: nextOrder(tasks, toToday ? 'today' : 'pool', toToday ? today : null),
     parentId: null,
     recurringId: null,
@@ -316,6 +317,7 @@ export const actions = {
       progress: 0,
       tracking: false,
       trackingProgress: 0,
+      trackingNotes: [],
       order,
       parentId,
       recurringId: null,
@@ -385,6 +387,46 @@ export const actions = {
         task.tracking = true
         task.updatedAt = now
         draft.updatedAt = now
+      }),
+    )
+  },
+
+  /**
+   * 追加一条追踪备注。
+   * 会同时记下当前的追踪进度，方便回看「写这句话时走到哪一步」。
+   * 空白内容直接忽略；自动把任务标记为待追踪。
+   */
+  addTrackingNote(id: string, text: string): void {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    const nowIso = clock.now().toISOString()
+    useStore.setState(
+      produce((draft: StoreState) => {
+        const task = draft.tasks.find((t) => t.id === id)
+        if (!task || task.deletedAt) return
+        task.trackingNotes.push({
+          id: createId(),
+          text: trimmed.slice(0, 500),
+          createdAt: nowIso,
+          progress: task.trackingProgress,
+        })
+        task.tracking = true
+        task.updatedAt = nowIso
+        draft.updatedAt = nowIso
+      }),
+    )
+  },
+
+  /** 删除一条追踪备注 */
+  deleteTrackingNote(id: string, noteId: string): void {
+    const nowIso = clock.now().toISOString()
+    useStore.setState(
+      produce((draft: StoreState) => {
+        const task = draft.tasks.find((t) => t.id === id)
+        if (!task || task.deletedAt) return
+        task.trackingNotes = task.trackingNotes.filter((n) => n.id !== noteId)
+        task.updatedAt = nowIso
+        draft.updatedAt = nowIso
       }),
     )
   },
@@ -844,6 +886,7 @@ export const actions = {
               progress: 100,
               tracking: false,
               trackingProgress: 0,
+              trackingNotes: [],
               order: k + 1,
               parentId: null,
               recurringId: null,

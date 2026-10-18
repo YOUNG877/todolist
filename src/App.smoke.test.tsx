@@ -38,6 +38,7 @@ function makeTask(partial: Partial<Task> & { title: string }): Task {
     progress: 0,
     tracking: false,
     trackingProgress: 0,
+    trackingNotes: [],
     lastRolledAt: null,
     order: 1,
     parentId: null,
@@ -731,6 +732,103 @@ describe('App 真实渲染（jsdom）', () => {
     expect(task.progress).toBe(80)
     expect(task.tracking).toBe(true)
     expect(task.trackingProgress).toBe(30)
+  })
+
+  it('追踪备注：可以记录多条进展，每条都带当时的追踪进度', () => {
+    const doneTask = makeTask({
+      title: '等审批',
+      status: 'done',
+      completedAt: at(2025, 6, 1, 10, 0).toISOString(),
+      completedDate: '2025-06-01',
+    })
+    seedStorage(makeState('2025-06-01', [doneTask]))
+    render(<App />)
+
+    const done = screen.getByRole('region', { name: '今日已完成' })
+    // 先开启追踪，备注输入框才会出现
+    fireEvent.click(within(done).getByRole('button', { name: '标记为待追踪：等审批' }))
+
+    const addNote = (progress: string, text: string): void => {
+      fireEvent.change(within(done).getByLabelText('追踪进度：等审批'), {
+        target: { value: progress },
+      })
+      const input = within(done).getByLabelText('添加追踪备注：等审批')
+      fireEvent.change(input, { target: { value: text } })
+      fireEvent.submit(input.closest('form') as HTMLFormElement)
+    }
+
+    addNote('40', '已提交材料')
+    addNote('80', '初审通过')
+
+    const task = useStore.getState().tasks[0]
+    expect(task.trackingNotes).toHaveLength(2)
+    // 备注按追加顺序保存，并记下写它时的进度
+    expect(task.trackingNotes[0]).toMatchObject({ text: '已提交材料', progress: 40 })
+    expect(task.trackingNotes[1]).toMatchObject({ text: '初审通过', progress: 80 })
+    expect(task.trackingNotes[0].id).not.toBe(task.trackingNotes[1].id)
+
+    // 界面上能看到两条备注和数量角标
+    expect(within(done).getByText('追踪备注 2')).toBeTruthy()
+    expect(within(done).getByText('已提交材料')).toBeTruthy()
+    expect(within(done).getByText('初审通过')).toBeTruthy()
+    expect((within(done).getByLabelText('添加追踪备注：等审批') as HTMLInputElement).value).toBe('')
+  })
+
+  it('追踪备注：空白内容不添加，可以删掉某一条', () => {
+    const doneTask = makeTask({
+      title: '等审批',
+      status: 'done',
+      tracking: true,
+      trackingNotes: [
+        { id: 'n1', text: '第一条', createdAt: at(2025, 6, 1, 11, 0).toISOString(), progress: 30 },
+        { id: 'n2', text: '第二条', createdAt: at(2025, 6, 1, 12, 0).toISOString(), progress: 60 },
+      ],
+      completedAt: at(2025, 6, 1, 10, 0).toISOString(),
+      completedDate: '2025-06-01',
+    })
+    seedStorage(makeState('2025-06-01', [doneTask]))
+    render(<App />)
+
+    const done = screen.getByRole('region', { name: '今日已完成' })
+    const input = within(done).getByLabelText('添加追踪备注：等审批')
+
+    // 只有空白 → 不添加
+    fireEvent.change(input, { target: { value: '   ' } })
+    fireEvent.submit(input.closest('form') as HTMLFormElement)
+    expect(useStore.getState().tasks[0].trackingNotes).toHaveLength(2)
+
+    // 删除第一条
+    fireEvent.click(within(done).getByRole('button', { name: '删除追踪备注：第一条' }))
+    const notes = useStore.getState().tasks[0].trackingNotes
+    expect(notes).toHaveLength(1)
+    expect(notes[0].text).toBe('第二条')
+    expect(within(done).queryByText('第一条')).toBeNull()
+  })
+
+  it('追踪备注：取消追踪后备注不丢（只是不再追踪）', () => {
+    const doneTask = makeTask({
+      title: '等审批',
+      status: 'done',
+      tracking: true,
+      trackingProgress: 50,
+      trackingNotes: [
+        { id: 'n1', text: '已提交', createdAt: at(2025, 6, 1, 11, 0).toISOString(), progress: 50 },
+      ],
+      completedAt: at(2025, 6, 1, 10, 0).toISOString(),
+      completedDate: '2025-06-01',
+    })
+    seedStorage(makeState('2025-06-01', [doneTask]))
+    render(<App />)
+
+    const done = screen.getByRole('region', { name: '今日已完成' })
+    fireEvent.click(within(done).getByRole('button', { name: '取消追踪：等审批' }))
+
+    const task = useStore.getState().tasks[0]
+    expect(task.tracking).toBe(false)
+    // 追踪进度清零，但备注是历史记录，保留下来
+    expect(task.trackingProgress).toBe(0)
+    expect(task.trackingNotes).toHaveLength(1)
+    expect(within(done).getByText('已提交')).toBeTruthy()
   })
 
   it('日历可以翻月，并能在翻走后回到今天', () => {

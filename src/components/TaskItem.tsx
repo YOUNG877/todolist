@@ -1,7 +1,8 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { Task } from '@/store/types'
 import { PRIORITY_LABEL } from '@/store/types'
-import { describeRelativeDay } from '@/core/date'
+import { describeRelativeDay, formatLocalTime } from '@/core/date'
+import { TrackingNotes } from './TrackingNotes'
 
 export interface TaskItemProps {
   task: Task
@@ -38,6 +39,10 @@ export interface TaskItemProps {
   onTrackingProgressChange?: (id: string, value: number) => void
   /** 已完成任务：退回今日待办 */
   onReopen?: (id: string) => void
+  /** 已完成任务：追加追踪备注 */
+  onAddTrackingNote?: (id: string, text: string) => void
+  /** 已完成任务：删除追踪备注 */
+  onDeleteTrackingNote?: (id: string, noteId: string) => void
   onMove?: (id: string, toIndex: number) => void
   /** 传入后显示「＋」按钮，用来添加二级任务 */
   onAddSubtask?: (id: string) => void
@@ -78,6 +83,8 @@ export function TaskItem({
   onToggleTracking,
   onTrackingProgressChange,
   onReopen,
+  onAddTrackingNote,
+  onDeleteTrackingNote,
   onMove,
   onAddSubtask,
 }: TaskItemProps): JSX.Element {
@@ -156,6 +163,10 @@ export function TaskItem({
             </span>
           )}
 
+          {!isSub && task.trackingNotes.length > 0 && (
+            <span className="chip chip--muted">追踪备注 {task.trackingNotes.length}</span>
+          )}
+
           {!isSub && task.priority !== 'none' && (
             <span className={`chip chip--p-${task.priority}`}>
               优先级 {PRIORITY_LABEL[task.priority]}
@@ -179,7 +190,7 @@ export function TaskItem({
           ))}
 
           {done && task.completedAt && (
-            <span className="time">{task.completedAt.slice(11, 16)} 完成</span>
+            <span className="time">{formatLocalTime(task.completedAt)} 完成</span>
           )}
         </div>
 
@@ -218,6 +229,18 @@ export function TaskItem({
             <span className="task__slider-value">{task.trackingProgress}%</span>
           </div>
         )}
+
+        {!isSub &&
+          (showTracking || task.trackingNotes.length > 0) &&
+          onAddTrackingNote &&
+          onDeleteTrackingNote && (
+            <TrackingNotes
+              task={task}
+              today={today}
+              onAdd={onAddTrackingNote}
+              onDelete={onDeleteTrackingNote}
+            />
+          )}
       </div>
 
       <div className="task__actions">

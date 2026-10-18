@@ -24,10 +24,11 @@
 | M10 | 恢复「按截止日期」排序（编辑弹窗能设截止日期了）、悬浮小窗底部快速加任务 | ✅ 完成 |
 | M11 | 任务进度 0–100%、已完成任务「待追踪」与追踪进度、已完成「退回今日」、**周末不计延期**、用户操作手册 | ✅ 完成 |
 | M11.1 | 修复「换了新版本后双击没反应」：单实例锁命中时改为弹窗说明，不再静默退出 | ✅ 完成 |
+| M11.2 | 多条追踪备注（带时间与进度快照）；修复完成时间与导出时间的时区错误 | ✅ 完成 |
 | M12 | 拖拽排序、行内语法（`!高 #标签 @日期`）、Toast 撤销、自动更新、PWA | ⬜ 未开始 |
 
-**已验证**：`pnpm typecheck` 无错误 · `pnpm test` **99/99 通过** · `pnpm build` 成功 ·
-1560px / 390px 视口下均无横向溢出 · 安装包 `release/TodoList-0.4.1-setup.exe`。
+**已验证**：`pnpm typecheck` 无错误 · `pnpm test` **110/110 通过** · `pnpm build` 成功 ·
+1560px / 390px 视口下均无横向溢出 · 安装包 `release/TodoList-0.4.2-setup.exe`。
 
 测试构成：
 
@@ -35,9 +36,10 @@
 - `src/store/flow.test.ts`（15 条）—— 需求 11.2 跨天脚本自动化版 + 10 条二级任务用例
 - `src/core/exporter.test.ts`（17 条）—— 导出：范围过滤、子任务归属、统计自洽、Markdown/CSV 结构
 - `src/core/filters.test.ts`（6 条）—— 标签筛选语义（OR、父子任务保留）
-- `src/core/workdays.test.ts`（14 条）—— 工作日计算与「周末不计延期」的结算行为
-- `src/App.smoke.test.tsx`（30 条，**jsdom 真实 DOM**）—— 渲染、点击、日历、二级任务、导出对话框、
-  任务编辑、标签管理与筛选、待办池全选、悬浮小窗模式、进度滑块、追踪与退回今日，
+- src/core/workdays.test.ts（14 条）—— 工作日计算与「周末不计延期」的结算行为
+- src/core/timestamp.test.ts（9 条）—— 时间戳按本地时区显示（防住 slice(11,16) 那类时区错误）
+- `src/App.smoke.test.tsx`（33 条，**jsdom 真实 DOM**）—— 渲染、点击、日历、二级任务、导出对话框、
+  任务编辑、标签管理与筛选、待办池全选、悬浮小窗模式、进度滑块、追踪与退回今日、多条追踪备注，
   以及 4 条盯住「时间旅行会不会弄丢任务」的回归测试
 
 ---
@@ -60,7 +62,7 @@ pnpm app:pack      # 生成 Windows 安装包到 release/
 ### 桌面应用与安装包
 
 ```bash
-pnpm app:pack      # → release/TodoList-0.4.1-setup.exe（安装包）+ -portable.zip（绿色版）
+pnpm app:pack      # → release/TodoList-0.4.2-setup.exe（安装包）+ -portable.zip（绿色版）
 pnpm app           # 不打包，直接跑桌面应用，便于调试主进程
 pnpm app:sign      # 生成自签名代码签名证书（首次一次性）
 pnpm app:pack:signed   # 用该证书签名打包（需证书密码）
@@ -124,7 +126,7 @@ certutil -user -addstore TrustedPublisher .certs\todolist-codesign.cer
 ```
 
 做完第 3 步，`release/signed/` 里的安装包就不会再被拦。
-验证签名状态：`Get-AuthenticodeSignature release\signed\TodoList-0.4.1-setup.exe`
+验证签名状态：`Get-AuthenticodeSignature release\signed\TodoList-0.4.2-setup.exe`
 —— 导入证书前是 `UnknownError`（签名存在但根证书不受信任），导入后应是 `Valid`。
 
 注意事项：
@@ -464,11 +466,29 @@ settings.countWeekends = true 可以切回自然日口径（时间调试面板�
 
 配色单独用了 `--c-track`（紫），和主色（蓝）、危险色（红）都拉开，避免和「完成」混淆。
 
+### 追踪备注（`Task.trackingNotes`）
+
+追踪中可以在滑块下面写**多条**备注，每条记下 `createdAt` 与**写入时的 `trackingProgress`**。
+带进度快照是关键：只有一行行文字的话，事后看不出「当时走到哪一步」。
+条目上显示 `追踪备注 N` 角标；取消追踪只清 `trackingProgress`，**备注作为历史记录保留**。
+
+归一化时过滤空文本、单条截断 500 字、每条任务最多留 200 条（防止长期累积无限膨胀）。
+
 ### 退回今日（`actions.reopenTask`）
 
 已完成任务「退回今日」回到今日待办：清空 `completedAt` / `completedDate`，
 `scheduledDate` 设为今天，**但保留 `progress` 与 `tracking`**——重新打开不等于重置。
 与「取消勾选」等价，只是入口更明确。
+
+### 时间显示必须走本地时区
+
+`completedAt` / `createdAt` 都用 `toISOString()` 存 UTC。早期显示代码写的是
+`iso.slice(11, 16)`——直接截字符串拿到的是 **UTC** 时:分，在 UTC+8 会整整**早 8 小时**，
+「今日已完成」和导出的述职报告都是错的。
+
+现在统一走 `date.ts` 的 `formatLocalTime()`（经 `Date` 解析成本地时分），
+`exporter.ts` 的 `timeOf()` 也改用它。测试夹具改用 `localIso()` 从本地时间构造，
+这样断言在任何时区都成立——否则测试会随运行机器漂移。
 
 ---
 

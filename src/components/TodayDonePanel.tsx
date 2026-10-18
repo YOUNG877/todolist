@@ -62,6 +62,8 @@ export function TodayDonePanel({
                 onToggleTracking={actions.toggleTracking}
                 onTrackingProgressChange={actions.setTrackingProgress}
                 onReopen={actions.reopenTask}
+                onAddTrackingNote={actions.addTrackingNote}
+                onDeleteTrackingNote={actions.deleteTrackingNote}
                 onMoveToToday={actions.moveToToday}
                 onMoveToPool={actions.moveToPool}
                 onDelete={actions.deleteTask}

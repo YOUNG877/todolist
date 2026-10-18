@@ -12,7 +12,7 @@
  * 所以不会出现在导出结果中（回收站里的任务同样不算）。
  */
 
-import { addDays, dateRangeInclusive, diffDays, formatShortDate } from './date'
+import { addDays, dateRangeInclusive, diffDays, formatLocalTime, formatShortDate } from './date'
 import { isSubtask, selectStreak } from './selectors'
 import type { DaySnapshot, Priority, Task } from '@/store/types'
 import { PRIORITY_LABEL } from '@/store/types'
@@ -217,7 +217,8 @@ export function buildExportData(
 /* -------------------------------------------------------------------------- */
 
 function timeOf(iso: string | null): string {
-  return iso ? iso.slice(11, 16) : ''
+  // completedAt 是 UTC 存的，必须按本地时区换算；slice(11,16) 会差整个时区偏移
+  return iso ? formatLocalTime(iso) : ''
 }
 
 function chipList(t: ExportTaskEntry): string {

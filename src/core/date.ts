@@ -108,6 +108,41 @@ export function startOfMonth(dateStr: string): string {
 }
 
 /* -------------------------------------------------------------------------- */
+/* 时间戳的本地化显示                                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * ISO 时间串 → 本地 `HH:mm`。
+ *
+ * 必须走 Date 解析：`completedAt` 之类是 `toISOString()` 存的 UTC，
+ * 直接 `slice(11, 16)` 取到的是 UTC 时:分，在 UTC+8 会整整早 8 小时。
+ */
+export function formatLocalTime(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+/** ISO 时间串 → 本地 `YYYY-MM-DD` */
+export function localDateOfIso(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return formatLocalDate(d)
+}
+
+/**
+ * 备注/记录的时间戳：当天只显示 `HH:mm`，跨天补上 `MM-DD`。
+ * @param today 逻辑日期，用来判断是否「当天」
+ */
+export function formatNoteStamp(iso: string, today: string): string {
+  const time = formatLocalTime(iso)
+  if (!time) return ''
+  const localDate = localDateOfIso(iso)
+  if (localDate === today) return time
+  return `${localDate.slice(5)} ${time}`
+}
+
+/* -------------------------------------------------------------------------- */
 /* 工作日（需求：周六日算节假日，不计入延期天数）                                 */
 /* -------------------------------------------------------------------------- */
 

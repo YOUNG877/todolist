@@ -1650,6 +1650,86 @@ code {
   border-left: 3px solid var(--c-track);
 }
 
+/* ---------- 追踪备注 ---------- */
+
+.track-notes {
+  margin-top: var(--sp-2);
+  padding-left: 2px;
+  max-width: 460px;
+}
+
+.track-notes__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--sp-2);
+}
+
+.track-notes__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: 3px 6px;
+  border-left: 2px solid var(--c-track-soft);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.track-notes__stamp {
+  flex: none;
+  color: var(--c-text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.track-notes__pct {
+  flex: none;
+  color: var(--c-track);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.track-notes__text {
+  flex: 1;
+  min-width: 0;
+  color: var(--c-text-2);
+  word-break: break-word;
+}
+
+.track-notes__del {
+  flex: none;
+  padding: 0 2px;
+  color: var(--c-text-3);
+  font-size: 10px;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.track-notes__item:hover .track-notes__del,
+.track-notes__item:focus-within .track-notes__del {
+  opacity: 1;
+}
+
+.track-notes__form {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.track-notes__input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px var(--sp-2);
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+}
+
+.track-notes__input:focus {
+  outline: none;
+  border-color: var(--c-track);
+}
+
 /* ---------- 标签编辑与筛选 ---------- */
 
 .task__title--button {

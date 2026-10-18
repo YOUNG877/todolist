@@ -80,6 +80,7 @@ function makeTask(partial: Partial<Task> = {}): Task {
     progress: 0,
     tracking: false,
     trackingProgress: 0,
+    trackingNotes: [],
     order: seq,
     parentId: null,
     recurringId: null,

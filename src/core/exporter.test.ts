@@ -12,6 +12,15 @@ import { describe, expect, it } from 'vitest'
 import { buildExportData, exportFileName, recentRange, toCsv, toMarkdown } from './exporter'
 import type { Task } from '@/store/types'
 
+/**
+ * Build an ISO string from LOCAL wall-clock time.
+ * Displayed times must be timezone-independent in tests:
+ * fixtures written as '...T10:30:00.000Z' would render as 18:30 in UTC+8.
+ */
+function localIso(y: number, m: number, d: number, h = 9, min = 0): string {
+  return new Date(y, m - 1, d, h, min, 0, 0).toISOString()
+}
+
 let seq = 0
 function makeTask(partial: Partial<Task> & { title: string }): Task {
   seq += 1
@@ -21,7 +30,7 @@ function makeTask(partial: Partial<Task> & { title: string }): Task {
     createdAt: '2026-01-01T01:00:00.000Z',
     updatedAt: '2026-01-01T01:00:00.000Z',
     scheduledDate: '2026-03-01',
-    completedAt: '2026-03-01T10:00:00.000Z',
+    completedAt: localIso(2026, 3, 1, 10),
     completedDate: '2026-03-01',
     deletedAt: null,
     priority: 'none',
@@ -33,6 +42,7 @@ function makeTask(partial: Partial<Task> & { title: string }): Task {
     progress: 0,
     tracking: false,
     trackingProgress: 0,
+    trackingNotes: [],
     lastRolledAt: null,
     order: seq,
     parentId: null,
@@ -46,9 +56,9 @@ const YEAR = { from: '2026-01-01', to: '2026-12-31', includeOpen: false, include
 describe('buildExportData', () => {
   it('按日期分组，日期倒序（最近的在前）', () => {
     const tasks = [
-      makeTask({ title: '一月的事', completedDate: '2026-01-05', completedAt: '2026-01-05T09:00:00.000Z' }),
-      makeTask({ title: '三月的事', completedDate: '2026-03-10', completedAt: '2026-03-10T09:00:00.000Z' }),
-      makeTask({ title: '十二月的事', completedDate: '2026-12-01', completedAt: '2026-12-01T09:00:00.000Z' }),
+      makeTask({ title: '一月的事', completedDate: '2026-01-05', completedAt: localIso(2026, 1, 5) }),
+      makeTask({ title: '三月的事', completedDate: '2026-03-10', completedAt: localIso(2026, 3, 10) }),
+      makeTask({ title: '十二月的事', completedDate: '2026-12-01', completedAt: localIso(2026, 12, 1) }),
     ]
     const data = buildExportData(tasks, {}, YEAR)
 
@@ -58,10 +68,10 @@ describe('buildExportData', () => {
 
   it('只统计范围内的记录（含两端边界）', () => {
     const tasks = [
-      makeTask({ title: '范围前一天', completedDate: '2025-12-31', completedAt: '2025-12-31T09:00:00.000Z' }),
-      makeTask({ title: '范围第一天', completedDate: '2026-01-01', completedAt: '2026-01-01T09:00:00.000Z' }),
-      makeTask({ title: '范围最后一天', completedDate: '2026-12-31', completedAt: '2026-12-31T09:00:00.000Z' }),
-      makeTask({ title: '范围后一天', completedDate: '2027-01-01', completedAt: '2027-01-01T09:00:00.000Z' }),
+      makeTask({ title: '范围前一天', completedDate: '2025-12-31', completedAt: localIso(2025, 12, 31) }),
+      makeTask({ title: '范围第一天', completedDate: '2026-01-01', completedAt: localIso(2026, 1, 1) }),
+      makeTask({ title: '范围最后一天', completedDate: '2026-12-31', completedAt: localIso(2026, 12, 31) }),
+      makeTask({ title: '范围后一天', completedDate: '2027-01-01', completedAt: localIso(2027, 1, 1) }),
     ]
     const data = buildExportData(tasks, {}, YEAR)
 
@@ -77,13 +87,13 @@ describe('buildExportData', () => {
       id: 'c1',
       title: '汇总进度',
       parentId: 'p1',
-      completedAt: '2026-03-01T11:00:00.000Z',
+      completedAt: localIso(2026, 3, 1, 11),
     })
     const sub2 = makeTask({
       id: 'c2',
       title: '整理计划',
       parentId: 'p1',
-      completedAt: '2026-03-01T12:00:00.000Z',
+      completedAt: localIso(2026, 3, 1, 12),
     })
     const data = buildExportData([parent, sub1, sub2], {}, YEAR)
 
@@ -92,7 +102,7 @@ describe('buildExportData', () => {
     expect(entry.title).toBe('写周报')
     expect(entry.children.map((c) => c.title)).toEqual(['汇总进度', '整理计划'])
     // 子任务的完成时间也要带出来
-    expect(entry.children[0].completedAt).toBe('2026-03-01T11:00:00.000Z')
+    expect(entry.children[0].completedAt).toBe(localIso(2026, 3, 1, 11))
   })
 
   it('已删除 / 未完成 / 回收站的任务不进入逐日清单', () => {
@@ -109,9 +119,9 @@ describe('buildExportData', () => {
 
   it('月度分布覆盖范围内所有月份（含 0 件的月份），总数自洽', () => {
     const tasks = [
-      makeTask({ title: 'A', completedDate: '2026-01-05', completedAt: '2026-01-05T09:00:00.000Z' }),
-      makeTask({ title: 'B', completedDate: '2026-01-20', completedAt: '2026-01-20T09:00:00.000Z' }),
-      makeTask({ title: 'C', completedDate: '2026-03-10', completedAt: '2026-03-10T09:00:00.000Z' }),
+      makeTask({ title: 'A', completedDate: '2026-01-05', completedAt: localIso(2026, 1, 5) }),
+      makeTask({ title: 'B', completedDate: '2026-01-20', completedAt: localIso(2026, 1, 20) }),
+      makeTask({ title: 'C', completedDate: '2026-03-10', completedAt: localIso(2026, 3, 10) }),
     ]
     const data = buildExportData(tasks, {}, YEAR)
 
@@ -192,13 +202,13 @@ describe('buildExportData', () => {
 describe('toMarkdown', () => {
   it('包含总览、按月分布、标签分布与逐日清单', () => {
     const tasks = [
-      makeTask({ title: '回复客户邮件', tags: ['工作'], priority: 'high', completedAt: '2026-03-01T10:30:00.000Z' }),
+      makeTask({ title: '回复客户邮件', tags: ['工作'], priority: 'high', completedAt: localIso(2026, 3, 1, 10, 30) }),
       // completedAt 与 completedDate 要一起给：真实数据里它们由 toggleComplete 同时写入
       makeTask({
         title: '跑步 5km',
         tags: ['健康'],
         completedDate: '2026-03-02',
-        completedAt: '2026-03-02T18:05:00.000Z',
+        completedAt: localIso(2026, 3, 2, 18, 5),
       }),
       makeTask({ title: '写周报', id: 'p', tags: ['工作'] }),
       makeTask({ id: 'c', title: '汇总进度', parentId: 'p' }),

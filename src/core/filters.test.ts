@@ -28,6 +28,7 @@ function makeTask(partial: Partial<Task> & { title: string }): Task {
     progress: 0,
     tracking: false,
     trackingProgress: 0,
+    trackingNotes: [],
     lastRolledAt: null,
     order: seq,
     parentId: null,
